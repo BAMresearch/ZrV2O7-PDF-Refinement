@@ -38,64 +38,39 @@ The primary capabilities and key technical details of the scripts include:
 These scripts are specifically tailored to address the structural complexities inherent in NTE materials, providing comprehensive and reliable structural refinements optimized for ZrV₂O₇ and similar complex oxide systems.
 
 
-## Installation
+## Requirements and Installation
 
-### Requirements
+The provided scripts require specific software and Python package versions to function correctly. Please carefully follow the instructions below.
 
-Package        | Required Version
--------------- | ----------------
-Python         | 3.7.x
-DiffPy-CMI     | 3.0.0
-PDFgetX3       | 2.1.1 (optional)
-NumPy          | >= 1.18
-SciPy          | >= 1.4
-Pandas         | >= 1.0
-Matplotlib     | >= 3.1
-Seaborn        | >= 0.11
-tqdm           | >= 4.0
-psutil         | >= 5.7
+### Software Requirements
 
-> **Important:** DiffPy-CMI requires Python 3.7 specifically. Create a dedicated Python 3.7 environment.
+| Package        | Version Requirement |
+|----------------|---------------------|
+| Python         | `3.7.x`             |
+| DiffPy-CMI     | `3.0.0`             |
+| NumPy          | `>=1.18`            |
+| SciPy          | `>=1.4`             |
+| Pandas         | `>=1.0`             |
+| Matplotlib     | `>=3.1`             |
+| Seaborn        | `>=0.11`            |
+| tqdm           | `>=4.0`             |
+| psutil         | `>=5.7`             |
 
-### Recommended Setup (New Python 3.7 Environment)
+> **Important:**  
+> The scripts strictly require Python 3.7 due to compatibility constraints with DiffPy-CMI. It is strongly recommended to create a dedicated Python 3.7 environment to prevent conflicts.
 
-#### Conda (Recommended)
+---
+
+### Creating a Dedicated Python 3.7 Environment
+
+#### Option A: Using Conda (recommended)
+
+To set up a new Conda environment, execute:
 
 ```bash
 conda create -n diffpy python=3.7
 conda activate diffpy
 
-pip install numpy>=1.18 scipy>=1.4 pandas>=1.0 matplotlib>=3.1 seaborn>=0.11 tqdm>=4.0 psutil>=5.7
-```
-
-#### virtualenv
-
-```bash
-python3.7 -m venv diffpy-env
-source diffpy-env/bin/activate
-
-pip install numpy>=1.18 scipy>=1.4 pandas>=1.0 matplotlib>=3.1 seaborn>=0.11 tqdm>=4.0 psutil>=5.7
-```
-
-### DiffPy-CMI Installation
-
-Activate your environment, then run:
-
-```bash
-pip install diffpy-cmi==3.0.0
-```
-
-[DiffPy-CMI installation guide](https://www.diffpy.org/products/diffpycmi/)
-
-### Optional: PDFgetX3 Installation
-
-Requires a separate license:
-
-```bash
-pip install diffpy.pdfgetx==2.1.1
-```
-
-[PDFgetX3 details](https://www.diffpy.org/products/pdfgetx3/)
 
 ## Repository Structure
 
