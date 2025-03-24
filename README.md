@@ -189,10 +189,21 @@ After completing these steps, the script extrapolates the final refined model ac
 
 ---
 
-### Multi-Phase Refinements (Optional)
+## Multi-Phase Refinements (Optional)
 
-- The script supports multi-phase refinements; however, the current implementation is optimized for single-phase ZrV₂O₇.  
-- Additional adjustments (e.g., handling multiple CIF files, scale factors, and tailored constraints) are necessary for multi-phase analyses.
+The provided refinement script supports simultaneous fitting of multiple structural phases. The basic functionality—such as PDF generation, scaling, and individual phase contributions—is fully operational. However, the use of rigid-body constraints (bond lengths, angles, dihedrals) in multi-phase scenarios has not been thoroughly tested and may introduce unexpected behaviors. Additional verification is recommended if rigid-body constraints are applied across multiple phases.
+
+### How to Define Multi-Phase CIF Input
+
+Multi-phase refinements are configured by modifying the `ciffile` dictionary in your script. The dictionary format is as follows:
+
+```python
+ciffile = {
+    'Phase1_filename.cif': ['SpaceGroup1', periodic1, (nx1, ny1, nz1)],
+    'Phase2_filename.cif': ['SpaceGroup2', periodic2, (nx2, ny2, nz2)],
+    # Add additional phases as needed
+}
+
 
 ---
 
