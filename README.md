@@ -6,6 +6,8 @@ Testing and Implementation: Aiste Miliute (aiste.miliute@bam.de)
 Version: 1.0.17
 License: MIT License
 
+![Animated structure of ZrV₂O₇](./images/structure.gif)
+
 ## Overview
 
 This repository contains Python scripts specifically developed for structural refinement of Zirconium Vanadate (ZrV₂O₇), a material known for its negative thermal expansion (NTE). The scripts implement Pair Distribution Function (PDF) analysis to refine crystal structures directly from experimental X-ray diffraction (XRD) data. The refinement workflow is built around the DiffPy-CMI library, enhanced with custom functionalities tailored for ZrV₂O₇ and similar oxide materials.
