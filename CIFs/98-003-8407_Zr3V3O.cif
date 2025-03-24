@@ -34,8 +34,10 @@ structure has been assigned a PDF number (calculated powder
 diffraction data): 01-077-0347. Neutron diffraction (powder).
 Structure type: Fe3W3C. Recording date: 12/31/1983. ANX formula:
 NO3P3. Z: 16. Calculated density: 6.52. Pearson code: cF112.
-Wyckoff code: f e d cStructure TIDY: TRANS  Origin  5/8 5/8
-5/8Structure TIDY: REMARK Transformed from non-centrosymmetric
+Wyckoff code: f e d c
+Structure TIDY: TRANS  Origin  5/8 5/8
+5/8
+Structure TIDY: REMARK Transformed from non-centrosymmetric
 setting.
 ;
 
