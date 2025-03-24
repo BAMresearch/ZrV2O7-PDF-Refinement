@@ -92,6 +92,55 @@ If PDFgetX3 is not installed, scripts must be manually adjusted to directly load
 For more information about PDFgetX3, visit [DiffPy PDFgetX3](https://www.diffpy.org/products/pdfgetx.html).
 
 ---
+## Usage
+
+This section describes how to set up your inputs and explains step-by-step the refinement procedure as implemented in `sample_refinement.py`.
+
+---
+
+### Project and Data Inputs
+
+All inputs are specified at the end of `sample_refinement.py`. Adjust these variables according to your experimental data and desired refinement approach.
+
+Example input definitions from the script:
+
+```python
+# Project and directories
+project_name = 'OneZirconiumVanadate105C/'
+xrd_directory = 'data/'        # Directory containing diffraction or PDF data
+cif_directory = 'CIFs/'        # Directory with structure CIF files
+fit_directory = 'fits/'        # Directory for refinement outputs
+
+# Experimental XRD data filename
+mypowderdata = 'PDF_ZrV2O7_061_105C_avg_246_265_00000.dat'
+
+# Chemical composition for PDF generation
+composition = 'O7 V2 Zr1'
+
+# Structural phases to refine (CIF files and corresponding symmetry)
+ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', False, (1, 1, 1)]}
+
+# Instrument parameters (from calibration or instrument profile)
+qdamp = 2.70577268e-02     # Instrumental damping factor
+qbroad = 2.40376789e-06    # Instrumental broadening factor
+
+# Atomic displacement parameters (ADPs)
+anisotropic = False        # Use isotropic ADPs (True if anisotropic ADPs desired)
+unified_Uiso = True        # Same Uiso values for atoms of the same element
+
+# Space group symmetry offset (usually [0,0,0])
+sgoffset = [0.0, 0.0, 0.0]
+
+# PDF calculation and refinement parameters
+myrange = (0.0, 80)        # Range for PDF calculation (in Å)
+myrstep = 0.05             # Step size for r-axis in PDF
+
+# Optimization convergence criteria
+convergence_options = {'disp': True}
+```
+
+
+---
 
 ## License
 
