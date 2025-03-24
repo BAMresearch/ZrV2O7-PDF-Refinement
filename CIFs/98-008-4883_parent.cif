@@ -40,7 +40,8 @@ data): 01-088-0583. Neutron diffraction (powder). Structure
 type: ZrP2O7. Recording date: 1/19/1999. Modification date:
 4/1/2006. ANX formula: AB2X7. Z: 4. Calculated density: 2.97.
 R value: 0.042. Pearson code: cP40. Wyckoff code: d c b a. PDF
-code: 00-016-0422Structure TIDY: TRANS  Origin  1/2 1/2 1/2
+code: 00-016-0422
+Structure TIDY: TRANS  Origin  1/2 1/2 1/2
 ;
 
 _publ_author_name                 
