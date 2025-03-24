@@ -1,0 +1,52 @@
+data_global
+_chemical_name_mineral 'Shcherbinaite'
+loop_
+_publ_author_name
+'Shklover V'
+'Haibach T'
+'Ried F'
+'Nesper R'
+'Novak P'
+_journal_name_full 'Journal of Solid State Chemistry'
+_journal_volume 123 
+_journal_year 1996
+_journal_page_first 317
+_journal_page_last 323
+_publ_section_title
+;
+ Crystal structure of the product of Mg2+ insertion into V2O5 single crystals
+ Sample: IIb
+;
+_database_code_amcsd 0013891
+_chemical_compound_source 'Synthetic'
+_chemical_formula_sum 'V2 O5'
+_cell_length_a 11.544
+_cell_length_b 3.571
+_cell_length_c 4.383
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_cell_volume 180.683
+_exptl_crystal_density_diffrn      3.343
+_symmetry_space_group_name_H-M 'P m m n'
+loop_
+_space_group_symop_operation_xyz
+  'x,y,z'
+  'x,1/2-y,z'
+  '-x,1/2+y,-z'
+  '1/2-x,y,z'
+  '1/2+x,-y,-z'
+  '1/2+x,1/2+y,-z'
+  '1/2-x,1/2-y,z'
+  '-x,-y,-z'
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_U_iso_or_equiv
+V   0.60123   0.25000   0.10860   0.00750
+O1   0.43090   0.25000  -0.00280   0.00990
+O2   0.60450   0.25000   0.46970   0.01740
+O3   0.75000   0.25000   0.00080   0.01270
+
