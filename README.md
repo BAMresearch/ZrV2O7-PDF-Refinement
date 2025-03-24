@@ -141,6 +141,66 @@ convergence_options = {'disp': True}
 
 
 ---
+## Usage and Fitting Procedure
+
+This section describes the detailed workflow implemented in `sample_refinement.py` for structural refinement of Zirconium Vanadate (ZrV₂O₇) from PDF data. The script is capable of refining single-phase structures and can be adapted for multi-phase systems with additional adjustments.
+
+---
+
+### Overview
+
+The refinement procedure involves several systematic stages:
+
+1. **Generating the experimental PDF** from X-ray diffraction data.
+2. **Creating PDF contributions** linked to structural models defined by CIF files.
+3. **Setting up a refinement recipe** with constraints based on the initial symmetry and rigid-body requirements.
+4. **Sequential refinement** in several stages, progressively lowering the space-group symmetry.
+5. **Applying rigid-body constraints** on bond lengths and angles to ensure physically meaningful structures.
+6. **Collecting and visualizing results**, including partial PDFs, refined CIF files, bond-length distributions, and angle statistics.
+
+---
+
+### Detailed Refinement Steps
+
+Each refinement stage follows this structured approach:
+
+- **Space-group symmetry adjustment:**  
+  Change structural symmetry from high (Pa-3) to lower symmetry settings (P213, P23, P1).
+
+- **Rigid-body constraints:**  
+  Apply and adjust constraints on bond lengths and angles.
+
+- **Sequential parameter refinement:**  
+  Parameters refined in each step include lattice parameters (`lat`), scale factors (`scale`), particle size (`psize`), peak shape (`delta2`), atomic displacement parameters (`adp`), and atomic positions (`xyz`).
+
+**Specific refinement steps:**
+
+| Step | Space Group | Bond Constraints (σ) | Angle Constraints (σ) | PDF range (Å) | Purpose |
+|------|-------------|----------------------|-----------------------|---------------|---------|
+| 0    | Pa-3        | 0.001                | 0.001                 | 1.5–27        | Initial high-symmetry refinement |
+| 1    | Pa-3        | 0.0001               | 0.0001                | 1.5–27        | Refine with tighter constraints |
+| 2    | P213        | 0.001                | 0.001                 | 1.5–27        | Test response to reduced symmetry |
+| 3    | P23         | 0.001                | 0.001                 | 1.5–27        | Further symmetry exploration |
+| 4    | P23         | 0.0001               | 0.0001                | 1.5–27        | Precise refinement at lower symmetry |
+| 5    | P1          | 0.001                | 0.001                 | 1.5–27        | Lowest symmetry flexibility |
+| 6    | P1          | 0.0001               | 0.0001                | 1.5–27        | Final refinement under strictest constraints |
+
+After completing these steps, the script extrapolates the final refined model across the full PDF range (0–80 Å) for comprehensive evaluation.
+
+---
+
+### Multi-Phase Refinements (Optional)
+
+- The script supports multi-phase refinements; however, the current implementation is optimized for single-phase ZrV₂O₇.  
+- Additional adjustments (e.g., handling multiple CIF files, scale factors, and tailored constraints) are necessary for multi-phase analyses.
+
+---
+
+### Output Structure
+
+Refinement results are organized systematically:
+
+
 
 ## License
 
