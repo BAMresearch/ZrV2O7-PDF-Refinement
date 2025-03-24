@@ -1,20 +1,42 @@
 
-# DiffPy-based Structural Refinement Framework for PDF Data
+# Structural Refinement of ZrV₂O₇ with Negative Thermal Expansion Using Pair Distribution Function Analysis
 
 Author: Tomasz Stawski (tomasz.stawski@bam.de)
-Version: 1.0.0
+Testing and Implementation: Aiste Miliute (aiste.miliute@bam.de)
+Version: 1.0.17
 License: MIT License
 
 ## Overview
 
-This repository provides Python scripts and tools developed for structural refinement using Pair Distribution Function (PDF) analysis. It leverages the capabilities of DiffPy-CMI and optionally PDFgetX3.
+This repository contains Python scripts specifically developed for structural refinement of Zirconium Vanadate (ZrV₂O₇), a material known for its negative thermal expansion (NTE). The scripts implement Pair Distribution Function (PDF) analysis to refine crystal structures directly from experimental X-ray diffraction (XRD) data. The refinement workflow is built around the DiffPy-CMI library, enhanced with custom functionalities tailored for ZrV₂O₇ and similar oxide materials.
 
-Features:
+The primary capabilities and key technical details of the scripts include:
 
-- Generation of PDFs from X-ray diffraction (XRD) data.
-- Advanced structural refinement using space-group constraints.
-- Customizable optimization and refinement strategies.
-- Comprehensive visualization and summary statistics of refined structures.
+- **Rigid-body Constraints and Connectivity-based Refinement:**  
+  Incorporates physically-informed rigid-body restraints based on well-defined polyhedral connectivity. This includes explicit constraints on bond lengths and angles within ZrO₆ octahedra and VO₄ tetrahedra, ensuring structural parameters remain physically realistic and chemically sensible.
+
+- **Adaptive Space-group Symmetry Switching:**  
+  Provides functionality to easily transition between different space-group settings (e.g., from higher symmetry groups such as Pa-3 to lower symmetry groups like P213, P23, and ultimately P1). This capability allows the systematic exploration of potential symmetry-breaking structural distortions or subtle symmetry variations typical of NTE materials.
+
+- **Sequential and Iterative Optimization Workflow:**  
+  Performs stepwise optimization of lattice parameters, atomic coordinates, atomic displacement parameters (ADPs), oxygen occupancy, and nanoscale domain sizes (using characteristic functions). Optimization is carried out using robust gradient-based minimization algorithms (e.g., L-BFGS-B), carefully managing parameter constraints and refinement order to achieve stable convergence.
+
+- **Parallelized PDF Calculations:**  
+  Implements parallel processing using Python’s multiprocessing capabilities, optimizing performance during the calculation of PDF patterns from structural models. This significantly accelerates refinement for large datasets or complex structural models.
+
+- **Comprehensive Visualization and Statistical Analysis:**  
+  Automatically generates a variety of plots and summary statistics, including:
+  - Observed vs. calculated PDF curves.
+  - Difference plots (residuals).
+  - Histograms of bond length distributions for Zr–O and V–O bonds.
+  - Detailed bond-angle distributions for critical polyhedral linkages (O–Zr–O, O–V–O, Zr–O–V, V–O–V).
+  - Export of refined crystal structures as CIF files for further analysis or reporting.
+
+- **Detailed Logging and Reporting:**  
+  Automatically logs each refinement step, including parameter adjustments, convergence criteria, refinement ranges, and space-group transitions. This functionality ensures reproducibility and facilitates detailed analysis of refinement pathways.
+
+These scripts are specifically tailored to address the structural complexities inherent in NTE materials, providing comprehensive and reliable structural refinements optimized for ZrV₂O₇ and similar complex oxide systems.
+
 
 ## Installation
 
