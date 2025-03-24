@@ -129,5 +129,6 @@ Special thanks to the DiffPy and DANSE Diffraction groups.
 ## Support and Contact
 
 Tomasz Stawski  
-tomasz.stawski@gmail.com  
 tomasz.stawski@bam.de
+tomasz.stawski@gmail.com  
+
