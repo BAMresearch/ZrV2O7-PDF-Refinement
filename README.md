@@ -46,7 +46,7 @@ This section outlines software installation using Anaconda, with required and op
 ### Software Requirements
 
 - Python 3.7 (strictly required for compatibility with DiffPy-CMI)
-- DiffPy-CMI `3.0.0`
+- DiffPy-CMI `3.0.0`, [DiffPy-CMI](https://www.diffpy.org/products/diffpycmi/index.html).
 - NumPy
 - SciPy
 - Pandas
