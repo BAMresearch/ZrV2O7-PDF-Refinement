@@ -41,23 +41,20 @@ These scripts are specifically tailored to address the structural complexities i
 
 ## Requirements and Installation
 
-This section describes the required software installation using Anaconda, specifically DiffPy-CMI.
+This section outlines software installation using Anaconda, with required and optional software.
 
 ### Software Requirements
 
-The following software versions and packages are required:
+- Python 3.7 (strictly required for compatibility with DiffPy-CMI)
+- DiffPy-CMI `3.0.0`
+- NumPy
+- SciPy
+- Pandas
+- Matplotlib
+- Seaborn
+- tqdm
+- psutil
 
-| Package        | Version Requirement |
-|----------------|---------------------|
-| Python         | `3.7.x`             |
-| DiffPy-CMI     | `3.0.0`             |
-| NumPy          | `>=1.18`            |
-| SciPy          | `>=1.4`             |
-| Pandas         | `>=1.0`             |
-| Matplotlib     | `>=3.1`             |
-| Seaborn        | `>=0.11`            |
-| tqdm           | `>=4.0`             |
-| psutil         | `>=5.7`             |
 
 > **Important:**  
 > Python 3.7 is strictly required for compatibility with DiffPy-CMI. Creating a dedicated Python 3.7 environment is strongly recommended.
@@ -107,40 +104,8 @@ Tomasz Stawski
 tomasz.stawski@bam.de  
 tomasz.stawski@gmail.com
 
-## Requirements and Installation
 
-This section describes the software requirements and installation procedures needed to run the structural refinement scripts.
 
-### Software Requirements
-
-The following software versions and packages are required:
-
-| Package        | Version Requirement |
-|----------------|---------------------|
-| Python         | `3.7.x`             |
-| DiffPy-CMI     | `3.0.0`             |
-| NumPy          | `>=1.18`            |
-| SciPy          | `>=1.4`             |
-| Pandas         | `>=1.0`             |
-| Matplotlib     | `>=3.1`             |
-| Seaborn        | `>=0.11`            |
-| tqdm           | `>=4.0`             |
-| psutil         | `>=5.7`             |
-
-> **Important:**  
-> Python 3.7 is strictly required for compatibility with DiffPy-CMI. It is strongly recommended to create a dedicated Python 3.7 environment.
-
----
-
-### Creating a Dedicated Python 3.7 Environment
-
-#### Option A: Using Conda (recommended)
-
-Create and activate a new Conda environment with Python 3.7:
-
-```bash
-conda create -n diffpy python=3.7
-conda activate diffpy
 
 
 
