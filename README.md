@@ -118,7 +118,7 @@ mypowderdata = 'PDF_ZrV2O7_061_105C_avg_246_265_00000.dat'
 composition = 'O7 V2 Zr1'
 
 # Structural phases to refine (CIF files and corresponding symmetry)
-ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', False, (1, 1, 1)]}
+ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]}
 
 # Instrument parameters (from calibration or instrument profile)
 qdamp = 2.70577268e-02     # Instrumental damping factor
