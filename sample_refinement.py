@@ -1,9 +1,12 @@
 """
 Created on Thu Nov 23 12:39:22 2023
+Updated on Mar 25 2025
 
 @author: Tomasz Stawski
 tomasz.stawski@gmail.com
 tomasz.stawski@bam.de
+
+version 1.0.17
 
 # =============================================================================
 # DESCRIPTION:
