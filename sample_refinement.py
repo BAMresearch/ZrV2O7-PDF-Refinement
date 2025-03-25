@@ -10,7 +10,7 @@ version 1.0.17
 
 # =============================================================================
 # DESCRIPTION:
-# This script demonstrates a refinement procedure for ZrV2O7-based structures.
+# This script implements a refinement procedure for ZrV2O7-based structures.
 # Users can modify space group symmetry mid-stream to see how the structure
 # adapts to different symmetry constraints. Rigid-body constraints (e.g. bond lengths,
 # angles) can be applied or removed as needed.
@@ -1915,9 +1915,9 @@ if not os.path.isdir(output_results_path):
     os.makedirs(output_results_path)
 
 # =============================== Phase Setup ================================
-# Define structural phasesPDF_ZrV2O7_061_75C_avg_126_145_00000.dat
+# Define structural phases
 #ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', False, (1, 1, 1)], '98-005-9396_ZrV2O7_2.cif': ['Pa-3', False, (1, 1, 1)]}
-ciffile = {'Phase0_6_70C.cif': ['Pa-3', True, (1, 1, 1)]}
+ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]}
 #ciffile = {'Phase0_6.cif': ['Pa-3', True, (1, 1, 1)]}
 
 
