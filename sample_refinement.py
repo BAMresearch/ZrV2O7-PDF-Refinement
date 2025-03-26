@@ -609,6 +609,32 @@ def phase(r0, g0, cfg, cif_directory, ciffile, fitRange, dx, qdamp, qbroad):
 # =============================================================================
 # Rigig body and aconnectivity
 # =============================================================================
+def lattice_vectors(a, b, c, alpha, beta, gamma):
+    """
+    Calculate the lattice transformation matrix from lattice parameters.
+
+    Parameters:
+    - a: Float, lattice parameter a in Å.
+    - b: Float, lattice parameter b in Å.
+    - c: Float, lattice parameter c in Å.
+    - alpha: Float, lattice angle α in degrees (between b and c).
+    - beta: Float, lattice angle β in degrees (between a and c).
+    - gamma: Float, lattice angle γ in degrees (between a and b).
+
+    Returns:
+    - lattice_matrix: 3x3 numpy array, with columns representing lattice vectors 
+      in Cartesian coordinates. Can be used to convert fractional coordinates to Cartesian.
+    """
+    
+    alpha_r, beta_r, gamma_r = np.radians([alpha, beta, gamma])
+    v_x = [a, 0, 0]
+    v_y = [b * np.cos(gamma_r), b * np.sin(gamma_r), 0]
+    c_x = c * np.cos(beta_r)
+    c_y = c * (np.cos(alpha_r) - np.cos(beta_r) * np.cos(gamma_r)) / np.sin(gamma_r)
+    c_z = np.sqrt(c**2 - c_x**2 - c_y**2)
+    v_z = [c_x, c_y, c_z]
+    return np.array([v_x, v_y, v_z]).T  # shape (3, 3)
+#----------------------------------------------------------------------------
 def calculate_angle(v1, v2):
     """
     Calculate the angle in degrees between two vectors in 3D space.
@@ -638,7 +664,6 @@ def calculate_dihedral(v1, v2, v3):
     Returns:
     - dihedral_angle: Float, the dihedral angle in degrees. Returns None if vectors are invalid.
     """
-    import numpy as np
 
     # Validate non-zero vectors
     def is_zero_vector(vec):
@@ -684,9 +709,9 @@ def get_polyhedral_bond_vectors(phase, zr_o_cutoff=(1.9, 2.2), v_o_cutoff=(1.5, 
 
     Parameters:
     - phase: Object representing the crystal structure of the phase being analyzed.
-    - zr_o_cutoff: Tuple of two floats, minimum and maximum distance for Zr-O bonds (default: (2.0, 2.2)).
-    - v_o_cutoff: Tuple of two floats, minimum and maximum distance for V-O bonds (default: (1.5, 1.8)).
-    - max_workers: Integer, the maximum number of threads for parallel processing (default: 4).
+    - zr_o_cutoff: Tuple of two floats, minimum and maximum distance for Zr-O bonds.
+    - v_o_cutoff: Tuple of two floats, minimum and maximum distance for V-O bonds.
+    - max_workers: Integer, the maximum number of threads for parallel processing.
 
     Returns:
     - bond_vectors: Dictionary containing bond information, structured as:
@@ -697,34 +722,34 @@ def get_polyhedral_bond_vectors(phase, zr_o_cutoff=(1.9, 2.2), v_o_cutoff=(1.5, 
         }
     """
     bond_vectors = {'Zr-O': [], 'V-O': [], 'O-O': []}
-    
-    # Extract lattice constants
+
     lattice = phase.lattice
     a, b, c = lattice.a.value, lattice.b.value, lattice.c.value
+    alpha, beta, gamma = lattice.alpha.value, lattice.beta.value, lattice.gamma.value
 
-    # Extract positions, elements, and labels from the structure
+    lattice_mat = lattice_vectors(a, b, c, alpha, beta, gamma)
+
     scatterers = phase.getScatterers()
-    positions = {i: (atom.x.value, atom.y.value, atom.z.value) for i, atom in enumerate(scatterers)}
+    positions = {i: np.array([atom.x.value, atom.y.value, atom.z.value]) for i, atom in enumerate(scatterers)}
     elements = {i: atom.element for i, atom in enumerate(scatterers)}
     labels = {i: atom.name.upper() for i, atom in enumerate(scatterers)}
-    coordination_groups = {}  # Store O atoms around each central atom
+    coordination_groups = {}
 
-    # Find Zr-O and V-O bonds, storing coordination groups
     with tqdm(total=len(scatterers), desc="Calculating Bond Vectors") as pbar:
         for i, atom in enumerate(scatterers):
             pbar.update(1)
             if elements[i] in ['Zr', 'V']:
                 central_atom = elements[i]
-                coordination_groups[i] = []  # Store O atom indices coordinated with each Zr or V
-                
+                coordination_groups[i] = []
+
+                central_cart = lattice_mat @ positions[i]
+
                 for j, neighbor in enumerate(scatterers):
                     if elements[j] == 'O' and i != j:
-                        central_pos = np.array([atom.x.value, atom.y.value, atom.z.value])
-                        neighbor_pos = np.array([neighbor.x.value, neighbor.y.value, neighbor.z.value])
-                        vector = neighbor_pos - central_pos
-                        bond_length = np.linalg.norm(vector * np.array([a, b, c]))
-                        
-                        # Check cutoff for Zr-O or V-O
+                        neighbor_cart = lattice_mat @ positions[j]
+                        vector_cart = neighbor_cart - central_cart
+                        bond_length = np.linalg.norm(vector_cart)
+
                         if (central_atom == 'Zr' and zr_o_cutoff[0] <= bond_length <= zr_o_cutoff[1]) or \
                            (central_atom == 'V' and v_o_cutoff[0] <= bond_length <= v_o_cutoff[1]):
                             bond_info = {
@@ -732,69 +757,64 @@ def get_polyhedral_bond_vectors(phase, zr_o_cutoff=(1.9, 2.2), v_o_cutoff=(1.5, 
                                     'symbol': central_atom,
                                     'index': i,
                                     'label': labels[i],
-                                    'position': positions[i]  # Add central atom position
+                                    'position': positions[i]
                                 },
                                 'atom1': {
                                     'symbol': central_atom,
                                     'index': i,
                                     'label': labels[i],
-                                    'position': positions[i]  # Add atom1 position
+                                    'position': positions[i]
                                 },
                                 'atom2': {
                                     'symbol': 'O',
                                     'index': j,
                                     'label': labels[j],
-                                    'position': positions[j]  # Add atom2 position
+                                    'position': positions[j]
                                 },
-                                'vector': vector,
+                                'vector': vector_cart,
                                 'length': bond_length,
-                                'relative_length': np.linalg.norm(vector)  # Using fractional coordinates
+                                'relative_length': np.linalg.norm(positions[j] - positions[i])
                             }
                             bond_type = 'Zr-O' if central_atom == 'Zr' else 'V-O'
                             bond_vectors[bond_type].append(bond_info)
 
-                            # Append the index of the oxygen atom to the coordination group
                             coordination_groups[i].append(j)
 
-    # Calculate O-O bonds within each coordination group
     for central_index, o_indices in coordination_groups.items():
         for i in range(len(o_indices)):
             for j in range(i + 1, len(o_indices)):
-                pos_i = np.array(positions[o_indices[i]])
-                pos_j = np.array(positions[o_indices[j]])
-                vector = pos_j - pos_i
-                length = np.linalg.norm(vector * np.array([a, b, c]))
+                pos_i_cart = lattice_mat @ positions[o_indices[i]]
+                pos_j_cart = lattice_mat @ positions[o_indices[j]]
+                vector_cart = pos_j_cart - pos_i_cart
+                length = np.linalg.norm(vector_cart)
 
                 bond_info = {
                     'central_atom': {
                         'symbol': elements[central_index],
                         'index': central_index,
                         'label': labels[central_index],
-                        'position': positions[central_index]  # Add central atom position
+                        'position': positions[central_index]
                     },
                     'atom1': {
                         'symbol': 'O',
                         'index': o_indices[i],
                         'label': labels[o_indices[i]],
-                        'position': positions[o_indices[i]]  # Add atom1 position
+                        'position': positions[o_indices[i]]
                     },
                     'atom2': {
                         'symbol': 'O',
                         'index': o_indices[j],
                         'label': labels[o_indices[j]],
-                        'position': positions[o_indices[j]]  # Add atom2 position
+                        'position': positions[o_indices[j]]
                     },
-                    'vector': vector,
+                    'vector': vector_cart,
                     'length': length,
-                    'relative_length': np.linalg.norm(vector)  # Using fractional coordinates
+                    'relative_length': np.linalg.norm(positions[o_indices[j]] - positions[o_indices[i]])
                 }
                 bond_vectors['O-O'].append(bond_info)
 
     return bond_vectors
-
-
-
-
+    
 #----------------------------------------------------------------------------
 def find_bond_pairs(phase, bond_vectors):
     """
