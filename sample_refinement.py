@@ -1,16 +1,13 @@
 """
 Created on Thu Nov 23 12:39:22 2023
-Updated on Mar 25 2025
 
 @author: Tomasz Stawski
 tomasz.stawski@gmail.com
 tomasz.stawski@bam.de
 
-version 1.0.17
-
 # =============================================================================
 # DESCRIPTION:
-# This script implements a refinement procedure for ZrV2O7-based structures.
+# This script demonstrates a refinement procedure for ZrV2O7-based structures.
 # Users can modify space group symmetry mid-stream to see how the structure
 # adapts to different symmetry constraints. Rigid-body constraints (e.g. bond lengths,
 # angles) can be applied or removed as needed.
@@ -609,6 +606,7 @@ def phase(r0, g0, cfg, cif_directory, ciffile, fitRange, dx, qdamp, qbroad):
 # =============================================================================
 # Rigig body and aconnectivity
 # =============================================================================
+
 def lattice_vectors(a, b, c, alpha, beta, gamma):
     """
     Calculate the lattice transformation matrix from lattice parameters.
@@ -634,6 +632,7 @@ def lattice_vectors(a, b, c, alpha, beta, gamma):
     c_z = np.sqrt(c**2 - c_x**2 - c_y**2)
     v_z = [c_x, c_y, c_z]
     return np.array([v_x, v_y, v_z]).T  # shape (3, 3)
+
 #----------------------------------------------------------------------------
 def calculate_angle(v1, v2):
     """
@@ -664,6 +663,7 @@ def calculate_dihedral(v1, v2, v3):
     Returns:
     - dihedral_angle: Float, the dihedral angle in degrees. Returns None if vectors are invalid.
     """
+    import numpy as np
 
     # Validate non-zero vectors
     def is_zero_vector(vec):
@@ -814,7 +814,7 @@ def get_polyhedral_bond_vectors(phase, zr_o_cutoff=(1.9, 2.2), v_o_cutoff=(1.5, 
                 bond_vectors['O-O'].append(bond_info)
 
     return bond_vectors
-    
+
 #----------------------------------------------------------------------------
 def find_bond_pairs(phase, bond_vectors):
     """
@@ -1212,9 +1212,6 @@ def create_constrain_expressions_for_dihedrals(dihedral_quadruplets, phase):
 
     return constrain_dict
 
-
-
-
 #----------------------------------------------------------------------------
 def refinement_RigidBody(fit, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False):
     """
@@ -1395,7 +1392,7 @@ def refinement_RigidBody(fit, cpdf, constrain_bonds, constrain_angles, constrain
                     fit.constrain(var_name, data['expression'])
                     lb = np.radians(data['angle'] - ang_limit)
                     ub = np.radians(data['angle'] + ang_limit)
-                    fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=constrain_angles[1])
+                    fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=constrain_dihedrals[1])
 
                     print(f"[INFO] {var_name}: dihedral={data['angle']:.2f}° (±{ang_limit}°)")
                 except Exception as e:
@@ -1898,11 +1895,12 @@ def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
         sgpar = constrainAsSpaceGroup(getattr(cpdf, phase).phase, spaceGroup, sgoffset = sgoffset)
         for par in sgpar.latpars:
             name = par.name + '_' + str(phase)
-            old_value = old_lattice_vars[name]
-            fit.addVar(par, value = old_value, name = name, fixed = False, tags=['lat', str(phase), 'lat_' + str(phase)])
-            print(f"Constrained {name} at {old_value}.")
-        
-        
+            try:
+                old_value = old_lattice_vars[name]
+                fit.addVar(par, value = old_value, name = name, fixed = False, tags=['lat', str(phase), 'lat_' + str(phase)])
+                print(f"Constrained {name} at {old_value}.")
+            except:
+                pass
     return fit
 #-----------------------------------------------------------------------------
 
@@ -1916,14 +1914,14 @@ def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
 
 # =============================== Input Definitions ===========================
 # Define project name and directories
-project_name = 'ZirconiumVanadate75Cperiodic/'
+project_name = 'ZirconiumVanadate85Cperiodic/'
 xrd_directory = 'data/'  # Directory containing diffraction data
 cif_directory = 'CIFs/'  # Directory containing CIF files
 fit_directory = 'fits/'  # Base directory for storing refinement results
 
 # =============================== XRD Data ====================================
 # Specify diffraction data file
-mypowderdata = 'PDF_ZrV2O7_061_75C_avg_126_145_00000.dat'
+mypowderdata = 'PDF_ZrV2O7_061_85C_avg_166_185_00000.dat'
 
 # =============================== Output Setup ================================
 # setup date and time format strings for naming of the fit results
@@ -1938,7 +1936,7 @@ if not os.path.isdir(output_results_path):
 # Define structural phases
 #ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', False, (1, 1, 1)], '98-005-9396_ZrV2O7_2.cif': ['Pa-3', False, (1, 1, 1)]}
 ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]}
-#ciffile = {'Phase0_6.cif': ['Pa-3', True, (1, 1, 1)]}
+
 
 
 # ========================== Atomic Composition ===============================
@@ -2008,7 +2006,7 @@ fit0 = refinement_basic(
 #                               FITTING STEPS
 # =============================================================================
 
-## ========================== Step 0: Initial Fit =============================
+# ========================== Step 0: Initial Fit =============================
 i = 0
 fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz']
 fitting_range = [1.5, 27]
@@ -2080,8 +2078,8 @@ fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, o
 # constrain_bonds = (True, 0.0001)
 # constrain_angles = (True, 0.0001)
 
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+# fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+# fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 # =============================================================================
 #                             FINALIZE RESULTS
 # =============================================================================
