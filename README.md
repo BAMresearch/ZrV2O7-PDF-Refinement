@@ -5,6 +5,9 @@ Author: Tomasz Stawski (tomasz.stawski@bam.de)
 Testing and Implementation: Aiste Miliute (aiste.miliute@bam.de)
 Version: 1.0.0
 License: MIT License
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15395753.svg)](https://doi.org/10.5281/zenodo.15395753)
+
+
 
 ![Animated structure of ZrV₂O₇](./images/structure.gif)
 
