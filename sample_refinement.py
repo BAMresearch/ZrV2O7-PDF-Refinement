@@ -1901,6 +1901,8 @@ def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
                 print(f"Constrained {name} at {old_value}.")
             except:
                 pass
+    # strip out any constraint whose .par is None
+    fit._oconstraints[:] = [c for c in fit._oconstraints if c.par is not None]
     return fit
 #-----------------------------------------------------------------------------
 
