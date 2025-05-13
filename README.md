@@ -3,7 +3,7 @@
 
 Author: Tomasz Stawski (tomasz.stawski@bam.de)
 Testing and Implementation: Aiste Miliute (aiste.miliute@bam.de)
-Version: 1.0.17
+Version: 1.0.0
 License: MIT License
 
 ![Animated structure of ZrV₂O₇](./images/structure.gif)
