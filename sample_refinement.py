@@ -106,50 +106,82 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # =============================================================================
 # Visualisation and summary functions
 # =============================================================================
-def plotmyfit(recipe, baseline=-4, ax=None):
+def plotmyfit(fit, baseline=-4, ax=None):
     """
     Plot the observed, calculated, and difference (Gobs, Gcalc, Gdiff) PDFs.
 
     Parameters:
-    - recipe: The fitting recipe object containing observed and calculated profiles.
+    - fit: FitRecipe object. Must contain exactly one PDFContribution somewhere.
     - baseline: Float, baseline offset for difference plot (default: -4).
     - ax: Matplotlib axis object, optional. If None, a new axis is created.
 
     Returns:
-    - rv: List of matplotlib line objects representing the plots.
-    - df: Pandas DataFrame with columns ['x', 'yobs', 'ycalc', 'ydiff'] containing
-      the profile data.
+    - rv: List of matplotlib Line2D objects for the drawn curves.
+    - df: Pandas DataFrame with columns ['x', 'yobs', 'ycalc', 'ydiff'].
     """
     from matplotlib import pyplot
-    
+    from diffpy.srfit.pdf import PDFContribution
+
+    # 1) Locate the single PDFContribution inside 'fit'.
+    try:
+        contrib = fit.cpdf
+    except AttributeError:
+        contrib = None
+        # Scan through fit attributes to find a PDFContribution
+        for attr in dir(fit):
+            val = getattr(fit, attr)
+            if isinstance(val, PDFContribution):
+                contrib = val
+                break
+        if contrib is None:
+            raise AttributeError(
+                "plotmyfit: no PDFContribution found on the provided fit. "
+                "Make sure your FitRecipe has exactly one PDFContribution (e.g. 'fit.cpdf = <PDFContribution>')."
+            )
+
+    # 2) Set up the plotting axis
     if ax is None:
         ax = pyplot.gca()
-    x = recipe.cpdf.profile.x
-    yobs = recipe.cpdf.profile.y
-    ycalc = recipe.cpdf.evaluate()
+
+    # 3) Extract observed data from the contribution
+    x = contrib.profile.x
+    yobs = contrib.profile.y
+
+    # 4) Compute the calculated PDF via the fit’s evaluate() method
+    ycalc = fit.evaluate()
     ydiff = yobs - ycalc
+
+    # 5) Plot Gobs, Gcalc, and Gdiff
     rv = []
-    #rv += ax.plot(r0, g0,'o', color = 'black', label='full range' )
-    rv += ax.plot(x, yobs, 'o', label='Gobs',
-                    markeredgecolor='blue', markerfacecolor='none')
+    rv += ax.plot(
+        x, yobs, 'o', label='Gobs',
+        markeredgecolor='blue', markerfacecolor='none'
+    )
     rv += ax.plot(x, ycalc, color='red', label='Gcalc')
     rv += ax.plot(x, ydiff + baseline, label='Gdiff', color='green')
     rv += ax.plot(x, baseline + 0 * x, linestyle=':', color='black')
+
     ax.set_xlabel(u'r (Å)')
     ax.set_ylabel(u'G (Å$^{-2}$)')
-    #create a dataframe with all the data and fits which can be later saved
-    df = pd.DataFrame([x, yobs, ycalc, ydiff])
-    df = df.transpose()
-    df.columns = ('x', 'yobs', 'ycalc', 'ydiff')
-    return rv, df
-#----------------------------------------------------------------------------
 
-def visualize_fit_summary(fit, phase, output_plot_path, font_size=14, label_font_size=20):
+    # 6) Build the DataFrame
+    df = pd.DataFrame({
+        'x':    x,
+        'yobs': yobs,
+        'ycalc': ycalc,
+        'ydiff': ydiff
+    })
+
+    return rv, df
+
+#----------------------------------------------------------------------------
+def visualize_fit_summary(fit, cpdf, phase, output_plot_path, font_size=14, label_font_size=20):
     """
     Visualize and summarize the fit results, including PDF data, bond lengths, and bond angles.
 
     Parameters:
     - fit: FitRecipe object, the refined fitting recipe containing the fit results.
+    - cpdf: PDFContribution object that was used for this fit (so we do not rely on fit.cpdf).
     - phase: Structure object, representing the phase used in the refinement.
     - output_plot_path: String, directory path where the output plots and summary will be saved.
     - font_size: Integer, font size for plot text (default: 14).
@@ -164,174 +196,258 @@ def visualize_fit_summary(fit, phase, output_plot_path, font_size=14, label_font
 
     # Helper function to find angle triplets (already updated with V-O-V detection)
     def find_angle_triplets_full(bond_vectors):
-        """
-        Identify and calculate angle triplets involving bonds, including categories like O-Zr-O, O-V-O,
-        Zr-O-V, and V-O-V, based on bond vectors.
-    
-        Parameters:
-        - bond_vectors: Dictionary containing bond information for 'Zr-O', 'V-O', and possibly 'O-O'.
-          Each entry includes bond vectors, bond lengths, and associated atom details.
-    
-        Returns:
-        - angle_triplets: List of dictionaries
-        """
         angle_triplets = []
         unique_triplets = set()
-        bonds_by_central_atom = {}
+        bonds_by_central = {}
 
         # Group Zr-O and V-O bonds by their central atom
         for bond_type in ['Zr-O', 'V-O']:
             for bond in bond_vectors[bond_type]:
-                central_label = bond['central_atom']['label']
-                if central_label not in bonds_by_central_atom:
-                    bonds_by_central_atom[central_label] = []
-                bonds_by_central_atom[central_label].append(bond)
+                central = bond['central_atom']['label']
+                bonds_by_central.setdefault(central, []).append(bond)
 
         # Detect O-Zr-O and O-V-O angles
-        for central_label, bonds in bonds_by_central_atom.items():
+        for central, bonds in bonds_by_central.items():
             if len(bonds) > 1:
                 for i in range(len(bonds)):
                     for j in range(i + 1, len(bonds)):
-                        atom1_label = bonds[i]['atom2']['label'] if bonds[i]['atom1']['label'] == central_label else bonds[i]['atom1']['label']
-                        atom2_label = bonds[j]['atom2']['label'] if bonds[j]['atom1']['label'] == central_label else bonds[j]['atom1']['label']
-
-                        if atom1_label == atom2_label or {atom1_label, atom2_label, central_label} in unique_triplets:
+                        b1 = bonds[i]
+                        b2 = bonds[j]
+                        atom1 = (b1['atom2']['label']
+                                 if b1['atom1']['label'] == central
+                                 else b1['atom1']['label'])
+                        atom2 = (b2['atom2']['label']
+                                 if b2['atom1']['label'] == central
+                                 else b2['atom1']['label'])
+                        if atom1 == atom2 or {atom1, atom2, central} in unique_triplets:
                             continue
 
-                        vector1 = bonds[i]['vector']
-                        vector2 = bonds[j]['vector']
-                        angle = calculate_angle(vector1, vector2)
-                        angle_category = 'O-Zr-O' if central_label.startswith('ZR') else 'O-V-O'
+                        vec1 = b1['vector']
+                        vec2 = b2['vector']
+                        angle = calculate_angle(vec1, vec2)
+                        category = 'O-Zr-O' if central.startswith('ZR') else 'O-V-O'
 
                         angle_triplets.append({
-                            'central_label': central_label,
-                            'atom1_label': atom1_label,
-                            'atom2_label': atom2_label,
+                            'central_label': central,
+                            'atom1_label': atom1,
+                            'atom2_label': atom2,
                             'angle': angle,
-                            'angle name': (atom1_label, central_label, atom2_label),
-                            'angle category': angle_category
+                            'angle name': (atom1, central, atom2),
+                            'angle category': category
                         })
-                        unique_triplets.add(frozenset([central_label, atom1_label, atom2_label]))
+                        unique_triplets.add(frozenset([central, atom1, atom2]))
 
         # Detect Zr-O-V and V-O-V angles
-        oxygen_atoms = {}
+        oxygen_dict = {}
         for bond_type in ['Zr-O', 'V-O']:
             for bond in bond_vectors[bond_type]:
-                oxygen_label = bond['atom2']['label'] if bond['atom1']['label'] == bond['central_atom']['label'] else bond['atom1']['label']
-                if oxygen_label not in oxygen_atoms:
-                    oxygen_atoms[oxygen_label] = []
-                oxygen_atoms[oxygen_label].append(bond)
+                oxy = (bond['atom2']['label']
+                       if bond['atom1']['label'] == bond['central_atom']['label']
+                       else bond['atom1']['label'])
+                oxygen_dict.setdefault(oxy, []).append(bond)
 
-        for oxygen_label, bonds in oxygen_atoms.items():
+        for oxy, bonds in oxygen_dict.items():
             if len(bonds) > 1:
                 for i in range(len(bonds)):
                     for j in range(i + 1, len(bonds)):
-                        central_label1 = bonds[i]['central_atom']['label']
-                        central_label2 = bonds[j]['central_atom']['label']
+                        b1 = bonds[i]
+                        b2 = bonds[j]
+                        cent1 = b1['central_atom']['label']
+                        cent2 = b2['central_atom']['label']
 
-                        if central_label1.startswith('ZR') and central_label2.startswith('V'):
-                            angle_category = 'Zr-O-V'
-                        elif central_label1.startswith('V') and central_label2.startswith('V'):
-                            angle_category = 'V-O-V'
+                        if cent1.startswith('ZR') and cent2.startswith('V'):
+                            category = 'Zr-O-V'
+                        elif cent1.startswith('V') and cent2.startswith('V'):
+                            category = 'V-O-V'
                         else:
                             continue
 
-                        vector1 = bonds[i]['vector']
-                        vector2 = bonds[j]['vector']
-                        angle = calculate_angle(vector1, vector2)
+                        vec1 = b1['vector']
+                        vec2 = b2['vector']
+                        angle = calculate_angle(vec1, vec2)
 
-                        triplet_sorted = tuple(sorted([central_label1, oxygen_label, central_label2]))
+                        triplet_sorted = tuple(sorted([cent1, oxy, cent2]))
                         if triplet_sorted not in unique_triplets:
                             angle_triplets.append({
-                                'central_label': oxygen_label,
-                                'atom1_label': central_label1,
-                                'atom2_label': central_label2,
+                                'central_label': oxy,
+                                'atom1_label': cent1,
+                                'atom2_label': cent2,
                                 'angle': angle,
-                                'angle name': (central_label1, oxygen_label, central_label2),
-                                'angle category': angle_category
+                                'angle name': (cent1, oxy, cent2),
+                                'angle category': category
                             })
-                            unique_triplets.add(frozenset([central_label1, oxygen_label, central_label2]))
+                            unique_triplets.add(frozenset([cent1, oxy, cent2]))
 
         return angle_triplets
 
-    # Calculate bond vectors and angle triplets
-    bond_vectors = get_polyhedral_bond_vectors(phase, zr_o_cutoff=(1.8, 2.8), v_o_cutoff=(1.5, 2.4), max_workers=4)
+    # Calculate bond vectors and angle triplets for this phase
+    bond_vectors = get_polyhedral_bond_vectors(
+        phase, zr_o_cutoff=(1.8, 2.8), v_o_cutoff=(1.5, 2.4), max_workers=4
+    )
     angle_triplets = find_angle_triplets_full(bond_vectors)
 
     # Set global font properties
     plt.rcParams['font.size'] = font_size
     plt.rcParams['font.family'] = 'Arial'
 
-    # Create the figure with 1 row and 3 panels
+    # Create figure with 1 row and 3 panels
     fig, axs = plt.subplots(1, 3, figsize=(21, 7))
 
     # 1. Plot the PDF data and the fit
-    r = fit.cpdf.profile.x
-    g_obs = fit.cpdf.profile.y
-    g_calc = fit.cpdf.evaluate()
+    r = cpdf.profile.x
+    g_obs = cpdf.profile.y
+    g_calc = fit.evaluate()
     g_diff = g_obs - g_calc
 
-    axs[0].plot(r, g_obs, 'o', label='G_obs', markeredgecolor='blue', markerfacecolor='none')
+    axs[0].plot(
+        r, g_obs, 'o', label='G_obs',
+        markeredgecolor='blue', markerfacecolor='none'
+    )
     axs[0].plot(r, g_calc, color='red', label='G_calc')
     axs[0].plot(r, g_diff - 4, color='green', label='G_diff')
     axs[0].axhline(y=-4, color='black', linestyle=':')
-    axs[0].set_xlabel('r (Å)')
-    axs[0].set_ylabel('G (Å^-2)')
-    axs[0].legend()
-    axs[0].set_title('PDF Data and Fit')
+    axs[0].set_xlabel('r (Å)', fontsize=label_font_size)
+    axs[0].set_ylabel('G (Å^-2)', fontsize=label_font_size)
+    axs[0].legend(fontsize=font_size)
+    axs[0].set_title('PDF Data and Fit', fontsize=label_font_size)
 
     # 2. Histogram of Bond Lengths
-    zr_o_lengths = [bond['length'] for bond in bond_vectors['Zr-O']]
-    v_o_lengths = [bond['length'] for bond in bond_vectors['V-O']]
+    zr_o_lengths = [b['length'] for b in bond_vectors['Zr-O']]
+    v_o_lengths = [b['length'] for b in bond_vectors['V-O']]
 
-    sns.histplot(zr_o_lengths, bins=50, kde=True, ax=axs[1], color='blue', label='Zr-O Bonds')
-    sns.histplot(v_o_lengths, bins=50, kde=True, ax=axs[1], color='red', label='V-O Bonds')
+    sns.histplot(
+        zr_o_lengths, bins=50, kde=True, ax=axs[1],
+        color='blue', label='Zr-O Bonds'
+    )
+    sns.histplot(
+        v_o_lengths, bins=50, kde=True, ax=axs[1],
+        color='red', label='V-O Bonds'
+    )
 
-    axs[1].set_xlabel('Bond Length (Å)')
-    axs[1].set_ylabel('Count')
-    axs[1].set_title('Zr-O and V-O Bond Length Distribution')
-    axs[1].legend()
+    axs[1].set_xlabel('Bond Length (Å)', fontsize=label_font_size)
+    axs[1].set_ylabel('Count', fontsize=label_font_size)
+    axs[1].set_title('Zr-O and V-O Bond Length Distribution', fontsize=label_font_size)
+    axs[1].legend(fontsize=font_size)
 
     # 3. Histogram of Bond Angles
-    o_zr_o_angles = [angle['angle'] for angle in angle_triplets if angle['angle category'] == 'O-Zr-O']
-    o_v_o_angles = [angle['angle'] for angle in angle_triplets if angle['angle category'] == 'O-V-O']
-    zr_o_v_angles = [angle['angle'] for angle in angle_triplets if angle['angle category'] == 'Zr-O-V']
-    v_o_v_angles = [angle['angle'] for angle in angle_triplets if angle['angle category'] == 'V-O-V']
+    o_zr_o_angles = [
+        a['angle'] for a in angle_triplets if a['angle category'] == 'O-Zr-O'
+    ]
+    o_v_o_angles = [
+        a['angle'] for a in angle_triplets if a['angle category'] == 'O-V-O'
+    ]
+    zr_o_v_angles = [
+        a['angle'] for a in angle_triplets if a['angle category'] == 'Zr-O-V'
+    ]
+    v_o_v_angles = [
+        a['angle'] for a in angle_triplets if a['angle category'] == 'V-O-V'
+    ]
 
-    sns.histplot(o_zr_o_angles, bins=np.linspace(70, 180, 50), kde=True, ax=axs[2], color='blue', label='O-Zr-O Angles')
-    sns.histplot(o_v_o_angles, bins=np.linspace(70, 180, 50), kde=True, ax=axs[2], color='red', label='O-V-O Angles')
-    sns.histplot(zr_o_v_angles, bins=np.linspace(70, 180, 50), kde=True, ax=axs[2], color='green', label='Zr-O-V Angles')
-    sns.histplot(v_o_v_angles, bins=np.linspace(70, 180, 50), kde=True, ax=axs[2], color='black', label='V-O-V Angles')
+    sns.histplot(
+        o_zr_o_angles, bins=np.linspace(70, 180, 50), kde=True,
+        ax=axs[2], color='blue', label='O-Zr-O Angles'
+    )
+    sns.histplot(
+        o_v_o_angles, bins=np.linspace(70, 180, 50), kde=True,
+        ax=axs[2], color='red', label='O-V-O Angles'
+    )
+    sns.histplot(
+        zr_o_v_angles, bins=np.linspace(70, 180, 50), kde=True,
+        ax=axs[2], color='green', label='Zr-O-V Angles'
+    )
+    sns.histplot(
+        v_o_v_angles, bins=np.linspace(70, 180, 50), kde=True,
+        ax=axs[2], color='black', label='V-O-V Angles'
+    )
 
-    axs[2].set_xlabel('Angle (°)')
-    axs[2].set_ylabel('Count')
+    axs[2].set_xlabel('Angle (°)', fontsize=label_font_size)
+    axs[2].set_ylabel('Count', fontsize=label_font_size)
     axs[2].set_xlim(50, 180)
-    axs[2].set_title('Bond Angle Distributions')
-    axs[2].legend()
+    axs[2].set_title('Bond Angle Distributions', fontsize=label_font_size)
+    axs[2].legend(fontsize=font_size)
 
     plt.tight_layout()
     plt.savefig(output_plot_path + 'summary_plot.pdf', dpi=600)
     plt.show()
 #----------------------------------------------------------------------------
+def export_vesta(structure, filename, frac_min=0.233, frac_max=0.567):
 
-def export_cifs(i, cpdf, output_path):
     """
-    Export the refined structures from the PDFContribution object (`cpdf`) to CIF files.
-
-    Parameters:
-    - i: Integer, the step or iteration index used in naming the output files.
-    - cpdf: PDFContribution object, containing the refined structural models for each phase.
-    - output_path: String, the directory path where the exported CIF files will be saved.
-
-    Returns:
-    - None. The function writes CIF files to the specified `output_path`.
+    Write a VESTA-compatible .vesta file from a diffpy structure, trimming to a fractional cube.
     """
-    #export the structures from the cpdf object as cifs
-    for phase in cpdf._generators:
-        getattr(cpdf,str(phase)).stru.write(output_path + str(phase)+'_'+ str(i) + '.cif', format='cif')
-    return
+
+    # Start collecting lines
+    lines = []
+
+    # Header
+    lines.append("VESTA_FORMAT_VERSION 3.3.0")
+    lines.append("TITLE")
+    lines.append(" Trimmed structure")
+
+    # Cell parameters
+    lat = structure.getLattice()
+    lines.append("CELL")
+    lines.append(f" {lat.a.value:.6f} {lat.b.value:.6f} {lat.c.value:.6f} "
+                 f"{lat.alpha.value:.6f} {lat.beta.value:.6f} {lat.gamma.value:.6f}")
+
+    # Symmetry
+    lines.append("SYMMETRY")
+    lines.append(" P1")
+
+    # Contents of unit cell
+    lines.append("STRUC")
+    lines.append(" 1 1 1")
+
+    # Atom block
+    lines.append("ATOM")
+    count = 1
+    for atom in structure.getScatterers():
+        fx = atom.x.value
+        fy = atom.y.value
+        fz = atom.z.value
+
+        if all(frac_min <= f <= frac_max for f in (fx, fy, fz)):
+            # Format: Element ID Symbol fx fy fz occ dummy
+            lines.append(f" {atom.element} {count:4d} {atom.element} "
+                         f"{fx:.6f} {fy:.6f} {fz:.6f} 1.000 0")
+            count += 1
+
+    # End atom list
+    lines.append(" -1")
+
+    # Additional required blocks (even if empty)
+    lines.extend([
+        "BOND",
+        " -1",
+        "SBOUND",
+        " -1",
+        "SBOND",
+        " -1",
+        "VECTR",
+        " -1",
+        "SHAPE",
+        " -1",
+        "DSRC",
+        " -1",
+        "TXSYM",
+        " -1",
+        "VECTT",
+        " -1",
+        "END"
+    ])
+
+    # Write to file
+    with open(filename, "w") as f:
+        f.write("\n".join(lines))
+
+    print(f"✅ Trimmed VESTA file written to {filename} with {count - 1} atoms.")
+
+
+
+
+
 #----------------------------------------------------------------------------
-def saveResults(i,fit, output_results_path):
+def saveResults(i, fit, cpdf, output_results_path):
     """
     Save the results of a refinement step, including fitting summary, visualizations,
     and data files.
@@ -339,51 +455,46 @@ def saveResults(i,fit, output_results_path):
     Parameters:
     - i: Integer, the step or iteration index used in naming the output files.
     - fit: FitRecipe object, containing the refined model and fit results.
+    - cpdf: PDFContribution object, containing the same contribution that was used
+            to build/refine `fit`.  This is needed for both plotmyfit() and export_cifs().
     - output_results_path: String, the directory path where results will be saved.
 
     Returns:
     - res: FitResults object, which contains a summary of the refinement results.
     """
-    res = FitResults(fit)
-#a report file from DiffPy
-    res.saveResults(output_results_path +'fitting_summary_' + str(i) + '.txt')
-#show and save summary figures
-    fig0 ,ax0 = subplots()
-    fig, df = plotmyfit(fit, ax=ax0)
-    fig0.savefig(output_results_path + 'fitting_'+ str(i) + '.png', dpi = 600)
-#save all the curves: G(r), fits etc.
-    df.to_csv(output_results_path + 'fitting_curve_'+ str(i) + '.csv')
-    export_cifs(i,cpdf, output_results_path)
-#pickle all the relevant objects
-#does not work with parallel processing! For this to work disable this line:
-#pdf.parallel(ncpu=ncpu, mapfunc=pool.map)
-    
-    # #the fit object    
-    #     fit_object_file = open(output_results_path+'fit'+str(i)+'.obj', 'wb')
-    #     pickle.dump(fit0,fit_object_file)
-    #     fit_object_file.close()
-        
-    # #the PDF object    
-    #     cpdf_object_file = open(output_results_path+'cpdf'+str(i)+'.obj', 'wb')
-    #     pickle.dump(cpdf,cpdf_object_file)
-    #     cpdf_object_file.close()
-    
-    #Capture the current fit.show() output in a text file (using redirect_stdout)
-    fit_show_filename = os.path.join(output_results_path, f"fit_state_{i}.txt")
+    # Remove any constraint whose .par is None
+    fit._oconstraints[:] = [c for c in fit._oconstraints if c.par is not None]
 
+    # Create a FitResults summary and write it to disk
+    res = FitResults(fit)
+    res.saveResults(output_results_path + f'fitting_summary_{i}.txt')
+
+    # Plot and save the “fit vs. data” figure, passing cpdf explicitly
+    fig0, ax0 = subplots()
+    fig, df = plotmyfit(fit, cpdf, ax=ax0)
+    fig0.savefig(output_results_path + f'fitting_{i}.png', dpi=600)
+
+    # Save G(r), G_calc, and G_diff to CSV
+    df.to_csv(output_results_path + f'fitting_curve_{i}.csv', index=False)
+
+    # Export all phases to CIF files
+    export_cifs(i, cpdf, output_results_path)
+
+    # Capture fit.show() text output
+    fit_show_filename = os.path.join(output_results_path, f"fit_state_{i}.txt")
     buffer = io.StringIO()
     with contextlib.redirect_stdout(buffer):
-        fit.show()        # No 'out=' parameter
+        fit.show()
     fit_show_text = buffer.getvalue()
-
     with open(fit_show_filename, "w") as f:
         f.write("==== Fit Recipe State (fit.show()) ====\n")
         f.write(fit_show_text)
         f.write("\n=======================================\n")
+
     return res
+
 #-----------------------------------------------------------------------------
 def finalize_results(cpdf, fit, output_results_path, myrange, myrstep):
-
     """
     Finalize the refinement process by exporting partial PDFs for each phase
     and generating a full-range extrapolated fit plot.
@@ -398,7 +509,6 @@ def finalize_results(cpdf, fit, output_results_path, myrange, myrstep):
     Returns:
     - None. Saves partial PDFs and the full-range extrapolated fit plot to the output directory.
     """
-
     # Export partial PDFs of each phase
     if len(cpdf._generators) > 1:
         scale_factors = {}
@@ -412,26 +522,27 @@ def finalize_results(cpdf, fit, output_results_path, myrange, myrstep):
             getattr(cpdf, 's_' + phase).value = 0
 
         # Generate a partial PDF for each phase
-        for phase in scale_factors.keys():
+        for phase in scale_factors:
             getattr(cpdf, 's_' + phase).value = scale_factors[phase]
             fig0, ax0 = subplots()
-            fig, df = plotmyfit(fit, ax=ax0)
+            fig, df = plotmyfit(fit, cpdf, ax=ax0)
             fig0.savefig(output_results_path + f'{phase}_partial_fit.png', dpi=600)
-            df.to_csv(output_results_path + f'{phase}_partial.csv')
+            df.to_csv(output_results_path + f'{phase}_partial.csv', index=False)
             getattr(cpdf, 's_' + phase).value = 0
 
         # Restore the original scale factors
-        for phase in scale_factors.keys():
+        for phase in scale_factors:
             getattr(cpdf, 's_' + phase).value = scale_factors[phase]
 
     # Extrapolation of the fit to a full range regardless of the fitting steps
     cpdf.setCalculationRange(myrange[0], myrange[1], myrstep)
     fig0, ax0 = subplots()
-    fig, df = plotmyfit(fit, ax=ax0)
+    fig, df = plotmyfit(fit, cpdf, ax=ax0)
     fig0.savefig(output_results_path + '_final_extrapolated_fit.png', dpi=600)
-    df.to_csv(output_results_path + '_final_extrapolated_fit.csv')
+    df.to_csv(output_results_path + '_final_extrapolated_fit.csv', index=False)
 
     print(f"Results finalized and saved to {output_results_path}")
+
 #-----------------------------------------------------------------------------
 
 # =============================================================================
@@ -485,7 +596,7 @@ def generatePDF(mypowderdata, composition, qmin = 0.0, qmax = 22, myrange = (1, 
     
     return r0, g0, cfg
 
-#----------------------------------------------------------------------------
+#---------------------------------------------------------------------
 def contribution(name, qmin, qmax, ciffile, periodic, super_cell):
     """
     Create and configure a PDFGenerator object from a CIF file.
@@ -560,7 +671,7 @@ def DebyeContribution(name, qmin, qmax, ciffile, periodic, super_cell):
 
 
 #----------------------------------------------------------------------------
-def phase(r0, g0, cfg, cif_directory, ciffile, fitRange, dx, qdamp, qbroad):
+def phase(r0, g0, cfg, cif_directory, ciffile, fitRange, dx, qdamp, qbroad, name = 'cpdf'):
     """
     Create a PDFContribution object for the refinement process by combining experimental data
     with structure models from CIF files.
@@ -581,7 +692,7 @@ def phase(r0, g0, cfg, cif_directory, ciffile, fitRange, dx, qdamp, qbroad):
     - cpdf: PDFContribution object, representing the combined phases with associated constraints
       and experimental data.
     """
-    cpdf = PDFContribution('cpdf')
+    cpdf = PDFContribution(name)
     cpdf.setScatteringType('X')
     cpdf.setQmax(cfg.qmax)
     cpdf.profile.setObservedProfile(r0.copy(), g0.copy())
@@ -1328,7 +1439,7 @@ def refinement_RigidBody(fit, cpdf, constrain_bonds, constrain_angles, constrain
             
                     # V-O-V shared bonds (existing logic)
                     if any(var_name in info["bond_vars"] for info in shared_oxygen_dict.values()):
-                        strict_sigma = 1e-8
+                        strict_sigma = 1e-7
                         lb = 0.95 * data['relative_length']
                         ub = 1.05 * data['relative_length']
                         print(f"[V-O-V BOND] {var_name}: lb={lb:.6f}, ub={ub:.6f}, sigma={strict_sigma}")
@@ -1535,8 +1646,8 @@ def refinement_basic(cpdf, anisotropic, unified_Uiso, sgoffset = [0,0,0]):
 # #   add Q-damp as a fitting paramater (optional)
 #     qdamp_ini = fit.newVar('qdamp', value=qdamp, tags=['qdamp'])
 #     for i, phase in enumerate(cpdf._generators):
-#         fit.constrain(getattr(cpdf, phase).qdamp, qdamp_ini)
-#         fit.restrain(getattr(cpdf, phase).qdamp, lb=0.0, sig=0.0001)              
+#         fit.constrain(getattr(cpdf, phase).delta2, qdamp_ini)
+#         fit.restrain(getattr(cpdf, phase).delta2, lb=0.0, sig=0.0001)              
     
     #------------------ 1 ------------------# 
     #Generate a phase equation. It pre-defines scale factors s* parameters for each phase.
@@ -1780,8 +1891,7 @@ def refinement_basic(cpdf, anisotropic, unified_Uiso, sgoffset = [0,0,0]):
 
     return fit
 #-----------------------------------------------------------------------------
-
-def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
+def modify_fit(fit, cpdf, spacegroup, sgoffset = [0,0,0]):
     """
     Modify the fitting recipe by updating the space group and regenerating atomic position variables,
     constraints, and restraints. This function adds new atom positions from a lower symmetry strucure,
@@ -1789,6 +1899,7 @@ def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
 
     Parameters:
     - fit: FitRecipe object, the current fitting recipe containing refinement variables and constraints.
+    - cpdf: PDFContribution object, whose generators (“phases”) we’ll re‐constrain.
     - spacegroup: String, the new space group to apply to the structure.
     - sgoffset: List of three floats, offset applied to the origin of the space group symmetry operations
       (default: [0, 0, 0]).
@@ -1815,36 +1926,39 @@ def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
         print(f"{name}: old variable deleted")
     
     # Clear added_params for each phase
-    for phase in fit.cpdf._generators:
+    for phase in cpdf._generators:
         added_params[str(phase)] = set()
     
     # Step 4: remove rigid body restrictions
     # This is important when the symmetry is changed, espcially for stching from low to high
     for name in dir(fit):
         if name.startswith('bond_') or name.startswith('angle_') or name.startswith('dihedral_'):
-            fit.unconstrain(getattr(fit,name))
-            fit.delVar(getattr(fit, name))
-            print(f"{name}: old variable deleted")
+            try:
+                fit.unconstrain(getattr(fit,name))
+                fit.delVar(getattr(fit, name))
+                print(f"{name}: old variable deleted")
+            except:
+                pass
 
 
-    # Step 4: Apply the new space group and generate new variables
-    for phase in fit.cpdf._generators:
+    # Step 5: Apply the new space group and generate new variables
+    for phase in cpdf._generators:
         
         try:
             # Apply new space group constraints
-            sgpar = constrainAsSpaceGroup(getattr(fit.cpdf, phase).phase, spacegroup)
+            sgpar = constrainAsSpaceGroup(getattr(cpdf, phase).phase, spacegroup)
             
             #SUPER IMPORTANT!!!
             # Ensure that existing constraints are cleared
             sgpar._clearConstraints()
         except Exception as e:
-            print(f"Error in applying space group: {e}")
-            pass
+            print(f"Error in applying space group to phase {phase}: {e}")
+            continue
         
-        # Step 5: Map the new variables to actual atom names
+        # Step 6: Map the new variables to actual atom names
         mapped_xyzpars = map_sgpar_params(sgpar, 'xyzpars')
 
- #Now, iterate over the new variables and apply the values from the old dictionary
+        # Now, iterate over the new variables and apply the values from the old dictionary
         for par in sgpar.xyzpars:
             try:
                 atom_symbol = par.par.obj.element
@@ -1875,9 +1989,9 @@ def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
                 print(f"Constrained {name_long} at {old_value}: atom position added to variables.")
                 #print(f"Default value: {par.par.value}. Temporary refined value: {old_value}")
             except Exception as e:
-                print(f"Error processing {parameter_name}: {e}")
+                print(f"Error processing {parameter_name} in phase {phase}: {e}")
                 
-    # Step 6: Enforce Pseudo-Cubic Constraints for Lattice Parameters and anisotropic ADPs
+    # Step 7: Enforce Pseudo-Cubic Constraints for Lattice Parameters and anisotropic ADPs
     old_lattice_vars = {}  # Temporary dictionary to store current variable names and values
     
     for name in fit.names:
@@ -1886,11 +2000,14 @@ def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
             old_lattice_vars[name] = var_value  
     
     for name in old_lattice_vars.keys():
-        fit.unconstrain(getattr(fit, name))
-        fit.delVar(getattr(fit, name))
-        print(f"{name}: old variable deleted")
+        try:
+            fit.unconstrain(getattr(fit, name))
+            fit.delVar(getattr(fit, name))
+            print(f"{name}: old variable deleted")
+        except:
+            pass
     
-    for phase in fit.cpdf._generators:
+    for phase in cpdf._generators:
         spaceGroup = str(list(ciffile.values())[0][0])
         sgpar = constrainAsSpaceGroup(getattr(cpdf, phase).phase, spaceGroup, sgoffset = sgoffset)
         for par in sgpar.latpars:
@@ -1905,8 +2022,147 @@ def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
     fit._oconstraints[:] = [c for c in fit._oconstraints if c.par is not None]
     return fit
 #-----------------------------------------------------------------------------
+def rebuild_cpdf(old_cpdf, r_obs, g_obs, myrange, myrstep, ncpu, pool, name='cpdf2'):
+    """
+    Build a new PDFContribution using the same Structure objects already present
+    in `old_cpdf`, instead of re‐loading from CIFs.
 
+    Parameters
+    ----------
+    old_cpdf : PDFContribution
+        An existing PDFContribution whose PDFGenerators hold refined structures
+        (accessible via `old_cpdf.PhaseX.phase.stru`).
+    r_obs, g_obs : numpy.ndarray
+        The new observed PDF data arrays (r and G(r)).
+    myrange : (float, float)
+        Tuple (rmin, rmax) specifying the range for PDF calculation.
+    myrstep : float
+        Step size (Δr) for PDF evaluation.
+    ncpu : int
+        Number of CPU cores to assign to each new PDFGenerator.
+    pool : multiprocessing.Pool
+        Pool instance for parallel execution (passed to `.parallel(...)`).
+    name : str, optional
+        Identifier for the new PDFContribution (default: "cpdf_rebuilt").
 
+    Returns
+    -------
+    PDFContribution
+        A fresh PDFContribution whose PDFGenerators each incorporate the exact
+        same `diffpy.Structure` objects from `old_cpdf`.
+
+    Debugging
+    ---------
+    - Prints each phase name as it is copied.
+    - Warns if any Q‐range or evaluator type cannot be transferred.
+    - Confirms at the end that the new contribution has the same number of generators.
+    """
+    # Create the new container
+    cpdf_new = PDFContribution(name)
+    cpdf_new.setScatteringType('X')
+
+    # Attempt to copy global Qmax; if unavailable, skip silently
+    try:
+        global_qmax = old_cpdf.getQmax()
+        cpdf_new.setQmax(global_qmax)
+        print(f"[DEBUG] Copied global Qmax = {global_qmax}")
+    except Exception:
+        print("[DEBUG] old_cpdf has no getQmax() or Qmax transfer failed.")
+
+    # Attach the new observed data
+    cpdf_new.profile.setObservedProfile(r_obs.copy(), g_obs.copy())
+    print(f"[DEBUG] Assigned observed profile: {len(r_obs)} points")
+
+    # Set calculation range exactly as requested
+    cpdf_new.setCalculationRange(xmin=myrange[0], xmax=myrange[1], dx=myrstep)
+    print(f"[DEBUG] Set calculation range: r ∈ [{myrange[0]}, {myrange[1]}], Δr = {myrstep}")
+
+    # Iterate over each phase generator in old_cpdf
+    for phase_name in old_cpdf._generators:
+        print(f"[DEBUG] Rebuilding phase generator: '{phase_name}'")
+        old_gen = getattr(old_cpdf, phase_name)
+
+        # Extract the refined Structure object
+        try:
+            old_structure = old_gen.phase.stru
+        except Exception:
+            print(f"[WARNING] Could not access Structure for '{phase_name}'; skipping.")
+            continue
+
+        # Create a new PDFGenerator with identical name
+        new_gen = PDFGenerator(str(phase_name))
+
+        # Copy Qmin/Qmax if they exist on the old generator
+        try:
+            qmin = old_gen._calc.qmin
+            new_gen.setQmin(qmin)
+            print(f"[DEBUG]  - Copied qmin = {qmin}")
+        except Exception:
+            print(f"[DEBUG]  - No qmin to copy for '{phase_name}'")
+
+        try:
+            qmax = old_gen._calc.qmax
+            new_gen.setQmax(qmax)
+            print(f"[DEBUG]  - Copied qmax = {qmax}")
+        except Exception:
+            print(f"[DEBUG]  - No qmax to copy for '{phase_name}'")
+
+        # Copy evaluator type
+        try:
+            eval_type = old_gen._calc.evaluatortype
+            new_gen._calc.evaluatortype = 'OPTIMIZED'
+            print(f"[DEBUG]  - Set evaluator type = '{eval_type}'")
+        except Exception:
+            print(f"[DEBUG]  - Could not copy evaluator type for '{phase_name}'")
+
+        # Determine periodicity flag
+        try:
+            periodic_flag = old_gen.phase.periodic
+        except Exception:
+            periodic_flag = True
+
+        # Assign the same Structure into the new generator
+        new_gen.setStructure(old_structure, periodic=periodic_flag)
+        print(f"[DEBUG]  - Assigned existing Structure (periodic={periodic_flag})")
+
+        # Transfer qdamp/qbroad if available
+        try:
+            qdamp_val = old_gen.qdamp.value
+            new_gen.qdamp.value = qdamp_val
+            print(f"[DEBUG]  - Copied qdamp = {qdamp_val}")
+        except Exception:
+            print(f"[DEBUG]  - No qdamp to copy for '{phase_name}'")
+
+        try:
+            qbroad_val = old_gen.qbroad.value
+            new_gen.qbroad.value = qbroad_val
+            print(f"[DEBUG]  - Copied qbroad = {qbroad_val}")
+        except Exception:
+            print(f"[DEBUG]  - No qbroad to copy for '{phase_name}'")
+
+        # Re‐enable parallel execution on the new generator
+        new_gen.parallel(ncpu=ncpu, mapfunc=pool.map)
+        print(f"[DEBUG]  - Enabled parallel with ncpu={ncpu}")
+
+        # Add to the new PDFContribution
+        cpdf_new.addProfileGenerator(new_gen)
+        print(f"[DEBUG]  - Added '{phase_name}' generator to new contribution.")
+
+    # Copy residual equation if present
+    try:
+        res_eq = old_cpdf.getResidualEquation()
+        cpdf_new.setResidualEquation(res_eq)
+        print(f"[DEBUG] Copied residual equation = '{res_eq}'")
+    except Exception:
+        print("[DEBUG] No residual equation to copy or transfer failed.")
+
+    # Final sanity check
+    n_old = len(old_cpdf._generators)
+    n_new = len(cpdf_new._generators)
+    print(f"[DEBUG] Completed rebuild: {n_old} -> {n_new} generators")
+
+    return cpdf_new
+#-----------------------------------------------------------------------------
 
 
 
@@ -1916,18 +2172,18 @@ def modify_fit(fit, spacegroup, sgoffset = [0,0,0]):
 
 # =============================== Input Definitions ===========================
 # Define project name and directories
-project_name = 'ZirconiumVanadate85Cperiodic/'
+project_name = 'ZirconiumVanadate25C209CperiodicTests_2/'
 xrd_directory = 'data/'  # Directory containing diffraction data
 cif_directory = 'CIFs/'  # Directory containing CIF files
 fit_directory = 'fits/'  # Base directory for storing refinement results
 
 # =============================== XRD Data ====================================
 # Specify diffraction data file
-mypowderdata = 'PDF_ZrV2O7_061_85C_avg_166_185_00000.dat'
+mypowderdata = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
 
 # =============================== Output Setup ================================
 # setup date and time format strings for naming of the fit results
-# DDMMYY_hms
+# DDMMYY_hmsPDF_ZrV2O7_061_672C_avg_626_645_00000.dat
 time_stamp = datetime.now().strftime("%d%m%Y_%H%M%S")
 # Create output directory for results
 output_results_path = fit_directory + project_name + str(time_stamp) + '/'
@@ -1938,6 +2194,7 @@ if not os.path.isdir(output_results_path):
 # Define structural phases
 #ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', False, (1, 1, 1)], '98-005-9396_ZrV2O7_2.cif': ['Pa-3', False, (1, 1, 1)]}
 ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]}
+#ciffile = {'model2.cif': ['Pa-3', True, (1, 1, 1)]}
 
 
 
@@ -1948,6 +2205,7 @@ composition = 'O7 V2 Zr1'
 # =========================== Instrumental Parameters =========================
 qdamp = 2.70577268e-02  # Instrumental broadening
 qbroad = 2.40376789e-06  # Sample-induced broadening
+qmax = 22.0 #instrumental q max in 1/A
 
 # ================= Atomic Displacement Parameters (ADPs) ====================
 # Decide how to handle ADPs: anisotropic or isotropic
@@ -1966,6 +2224,8 @@ myrstep = 0.05       # Step size for r values
 convergence_options = {'disp': True}
 #relevant only for some fitting methods
 
+
+
 # =============================================================================
 #                             INITIALIZATION
 # =============================================================================
@@ -1976,24 +2236,23 @@ avail_cores = np.floor((100 - cpu_percent) / (100.0 / syst_cores))
 ncpu = int(np.max([1, avail_cores]))  # Ensure at least one core is used
 pool = Pool(processes=ncpu)
 
+#global variables to keep track of the data
+# Global dictionary to keep track of added XYZ positions in the refinement recipe for each phase
+added_params = {}
+#bond vectors to be calculated for each phase
+global_bond_vectors = {}
+
 # Generate the initial PDF
 r0, g0, cfg = generatePDF(
     xrd_directory + mypowderdata,
     composition,
     qmin=0.0,
-    qmax=22,
+    qmax=qmax,
     myrange=myrange,
     myrstep=myrstep
 )
+
 cpdf = phase(r0, g0, cfg, cif_directory, ciffile, myrange, myrstep, qdamp, qbroad)
-
-#global variables to keep track of the data
-# Global dictionary to keep track of added XYZ positions in the refinement recipe for each phase
-added_params = {}
-
-#bond vectors to be calculated for each phase
-global_bond_vectors = {}
-
 
 # Initialize the fit object with default constraints
 fit0 = refinement_basic(
@@ -2010,13 +2269,13 @@ fit0 = refinement_basic(
 
 # ========================== Step 0: Initial Fit =============================
 i = 0
-fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz']
+fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz','all']
 fitting_range = [1.5, 27]
 residualEquation = 'resv'
 constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
-fit0 = modify_fit(fit0, 'Pa-3', sgoffset=sgoffset)
+fit0 = modify_fit(fit0, cpdf, 'Pa-3', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
 fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
@@ -2025,72 +2284,196 @@ fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, o
 i = 1
 constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
-
-fit0 = modify_fit(fit0, 'Pa-3', sgoffset=sgoffset)
+fit0 = modify_fit(fit0, cpdf, 'Pa-3', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 2: Adjust Symmetry =========================
 i = 2
 constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
-
-fit0 = modify_fit(fit0, 'P213', sgoffset=sgoffset)
+fit0 = modify_fit(fit0, cpdf, 'P213', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
 # ========================== Step 3: Adjust Symmetry =========================
 i = 3
-fit0 = modify_fit(fit0, 'P23', sgoffset=sgoffset)
 constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
-
+fit0 = modify_fit(fit0, cpdf, 'P23', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
 # ========================== Step 4: Further Refinement ======================
 i = 4
 constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
-
-fit0 = modify_fit(fit0, 'P23', sgoffset=sgoffset)
+fit0 = modify_fit(fit0, cpdf, 'P23', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path)
 
 # ========================== Step 5: Lowest Symmetry =========================
 i = 5
-fit0 = modify_fit(fit0, 'P1', sgoffset=sgoffset)
 constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
-
+constrain_dihedrals = (False, 0.001)
+fit0 = modify_fit(fit0, cpdf, 'P1', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 6: Lowest Symmetry =========================
 i = 6
-fit0 = modify_fit(fit0, 'P1', sgoffset=sgoffset)
 constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
-
+constrain_dihedrals = (False, 0.001)
+fit0 = modify_fit(fit0, cpdf, 'P1', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
-# ========================== Step 7: Extend Range =========================
+# #========================== Step 7: Extend Flexibility =========================
 # i = 7
-# fitting_range = [1.5, 35]
-# fit0 = modify_fit(fit0, 'P1', sgoffset=sgoffset)
-# constrain_bonds = (True, 0.0001)
-# constrain_angles = (True, 0.0001)
-
-# fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+# fitting_range = [1.5, 30]
+# fit0 = modify_fit(fit0, cpdf, 'P1', sgoffset=sgoffset)
+# constrain_bonds = (True, 0.001)
+# constrain_angles = (True, 0.001)
+# fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
 # fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
 # =============================================================================
 #                             FINALIZE RESULTS
 # =============================================================================
 finalize_results(cpdf, fit0, output_results_path, myrange, myrstep)
 
-# #==============================================================================
-# # Simulate PDFs
-# # =============================================================================
-# # file = cif_directory + list(ciffile.keys())[0]
-# # df_sim = simulatePDF(file, rmin=myrange[0], rmax=myrange[1], rstep = myrstep, qmin = cfg.qmin, qmax = cfg.qmax, qdamp=qdamp, qbroad=qbroad, scale = 5e-01, delta2 = 2)
-# # df_sim.to_csv('output.csv', index = None)
-# # plt.plot(df_sim['r'], df_sim['g'])
+
+
+
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# =============================================================================
+#                   CONTINUE FITTING WITH DIFFERENT DATA
+# =============================================================================
+# =============================== XRD Data ====================================
+# Specify diffraction data file
+mypowderdata = 'PDF_ZrV2O7_061_209C_avg_346_365_00000.dat'
+
+# =============================== Output Setup ================================
+# setup date and time format strings for naming of the fit results
+# DDMMYY_hmsPDF_ZrV2O7_061_672C_avg_626_645_00000.dat
+time_stamp = datetime.now().strftime("%d%m%Y_%H%M%S")
+# Create output directory for results
+output_results_path = fit_directory + project_name + str(time_stamp) + '/'
+if not os.path.isdir(output_results_path):
+    os.makedirs(output_results_path)
+
+# Load the new data    
+# Generate the initial PDF
+r0, g0, cfg = generatePDF(
+    xrd_directory + mypowderdata,
+    composition,
+    qmin=0.0,
+    qmax=qmax,
+    myrange=myrange,
+    myrstep=myrstep
+)
+
+#Build a fresh cpdf2 that reuses the exact same Structures from `cpdf`
+cpdf2 = rebuild_cpdf(
+    old_cpdf = cpdf,
+    r_obs    = r0,
+    g_obs    = g0,
+    myrange  = myrange,
+    myrstep  = myrstep,
+    ncpu     = ncpu,
+    pool     = pool,
+    name     = 'cpdf2'
+)
+
+#Re‐initialize a brand‐new FitRecipe from cpdf2:
+fit1 = refinement_basic(
+    cpdf2,
+    anisotropic=anisotropic,
+    unified_Uiso=unified_Uiso,
+    sgoffset=sgoffset
+)
+
+
+# ========================== Step 0: Initial Fit =============================
+i = 0
+fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz','all']
+fitting_range = [1.5, 27]
+residualEquation = 'resv'
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+constrain_dihedrals = (False, 0.001)
+fit1 = modify_fit(fit1, cpdf2, 'Pa-3', sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+
+# ========================== Step 1: Refinement ==============================
+i = 1
+constrain_bonds = (True, 0.0001)
+constrain_angles = (True, 0.0001)
+fit1 = modify_fit(fit1, cpdf2, 'Pa-3', sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 2: Adjust Symmetry =========================
+i = 2
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+fit1 = modify_fit(fit1, cpdf2, 'P213', sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 3: Adjust Symmetry =========================
+i = 3
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+fit1 = modify_fit(fit1, cpdf2, 'P23', sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 4: Further Refinement ======================
+i = 4
+constrain_bonds = (True, 0.0001)
+constrain_angles = (True, 0.0001)
+fit1 = modify_fit(fit1, cpdf2, 'P23', sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 5: Lowest Symmetry =========================
+i = 5
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+constrain_dihedrals = (False, 0.001)
+fit1 = modify_fit(fit1, cpdf2, 'P1', sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 6: Lowest Symmetry =========================
+i = 6
+constrain_bonds = (True, 0.0001)
+constrain_angles = (True, 0.0001)
+constrain_dihedrals = (False, 0.001)
+fit1 = modify_fit(fit1, cpdf2, 'P1', sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# =============================================================================
+#                             FINALIZE RESULTS
+# =============================================================================
+finalize_results(cpdf2, fit1, output_results_path, myrange, myrstep)
+
+
+
+
+# # #==============================================================================
+# # # Simulate PDFs
+# # # =============================================================================
+# # # file = cif_directory + list(ciffile.keys())[0]
+# # # df_sim = simulatePDF(file, rmin=myrange[0], rmax=myrange[1], rstep = myrstep, qmin = cfg.qmin, qmax = cfg.qmax, qdamp=qdamp, qbroad=qbroad, scale = 5e-01, delta2 = 2)
+# # # df_sim.to_csv('output.csv', index = None)
+# # # plt.plot(df_sim['r'], df_sim['g'])
