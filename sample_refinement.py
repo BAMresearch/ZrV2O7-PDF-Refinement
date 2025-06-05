@@ -1781,7 +1781,6 @@ def rebuild_cpdf(old_cpdf, r_obs, g_obs, myrange, myrstep, ncpu, pool, name='cpd
         try:
             eval_type = old_gen._calc.evaluatortype
             new_gen._calc.evaluatortype = 'OPTIMIZED'
-            print(f"[DEBUG]  - Set evaluator type = '{eval_type}'")
         except Exception:
             print(f"[DEBUG]  - Could not copy evaluator type for '{phase_name}'")
 
@@ -1825,6 +1824,266 @@ def rebuild_cpdf(old_cpdf, r_obs, g_obs, myrange, myrstep, ncpu, pool, name='cpd
     print(f"[DEBUG] Completed rebuild: {n_old} -> {n_new} generators")
 
     return cpdf_new
+
+#-----------------------------------------------------------------------------
+def refinement_basic_with_initial(fit_old, cpdf_new, anisotropic, unified_Uiso, sgoffset=[0, 0, 0]):
+    """
+    Create a “basic” fitting recipe for `cpdf_new`, but initialize every variable
+    with the value it had in `fit_old`, if it exists there.
+
+    Parameters:
+    - fit_old:       FitRecipe object from the previous round of refinement.
+    - cpdf_new:      PDFContribution object for the “new” data.
+    - anisotropic:   Bool, whether to use anisotropic ADPs.
+    - unified_Uiso:  Bool, whether to unify Uiso by element.
+    - sgoffset:      List of 3 floats, offset passed to constrainAsSpaceGroup.
+
+    Returns:
+    - fit_new:       A new FitRecipe with identical structure to refinement_basic(),
+                     but each variable’s .value is copied from fit_old if available.
+    """
+    print("\n======================================")
+    print("[INFO] Building new basic refinement recipe with initial values from previous fit")
+    print("======================================\n")
+
+    # --------------------------------------------------------------------------------
+    # STEP 1: Build the brand-new “basic” recipe exactly as refinement_basic() does
+    # --------------------------------------------------------------------------------
+    fit_new = FitRecipe()
+    fit_new.addContribution(cpdf_new)
+    print("[INFO] Added PDFContribution to new FitRecipe")
+
+    # 1a) Phase equation (scale factors)
+    phase_equation = ""
+    for phase in cpdf_new._generators:
+        phase_equation += f"s_{phase}*{phase} + "
+    cpdf_new.setEquation(phase_equation[:-3])
+    print(f"[INFO] Set phase equation: {cpdf_new.getEquation()}")
+
+    # 1b) Add Δ2 for each phase independently
+    for phase in cpdf_new._generators:
+        fit_new.addVar(
+            getattr(cpdf_new, phase).delta2,
+            name=f"delta2_{phase}",
+            value=2.0,
+            tags=["delta2", str(phase), f"delta2_{phase}", "delta"]
+        )
+        fit_new.restrain(
+            getattr(cpdf_new, phase).delta2,
+            lb=0.0, ub=5.0, scaled=True, sig=0.005
+        )
+        print(f"[INFO] Added Δ2 parameter for phase '{phase}' with initial value 2.0")
+
+    # 1c) Add scale factors s_phase
+    for phase in cpdf_new._generators:
+        fit_new.addVar(
+            getattr(cpdf_new, f"s_{phase}"),
+            value=0.1,
+            tags=["scale", str(phase), f"s_{phase}"]
+        )
+        fit_new.restrain(
+            getattr(cpdf_new, f"s_{phase}"),
+            lb=0.0, scaled=True, sig=0.0005
+        )
+        print(f"[INFO] Added scale factor 's_{phase}' with initial value 0.1")
+
+    # 1d) For each phase, retrieve space‐group params and add lattice, ADP, xyz
+    for i, phase in enumerate(cpdf_new._generators):
+        spaceGroup = str(list(ciffile.values())[i][0])
+        print(f"\n[INFO] Applying space group '{spaceGroup}' to phase '{phase}'")
+        sgpar = constrainAsSpaceGroup(
+            getattr(cpdf_new, phase).phase,
+            spaceGroup,
+            sgoffset=sgoffset
+        )
+
+        # — add lattice parameters (latpars)
+        for par in sgpar.latpars:
+            fit_new.addVar(
+                par,
+                value=par.value,
+                name=f"{par.name}_{phase}",
+                fixed=False,
+                tags=["lat", str(phase), f"lat_{phase}"]
+            )
+            print(f"[INFO]   Added lattice parameter '{par.name}_{phase}' with initial value {par.value}")
+
+        # — add ADPs
+        if anisotropic:
+            getattr(cpdf_new, phase).stru.anisotropy = True
+            print(f"[INFO]   Enabling anisotropic ADPs for phase '{phase}'")
+            for par in sgpar.adppars:
+                atom_label = par.par.obj.label
+                atom_symbol = par.par.obj.element
+                if atom_symbol == "V":
+                    value = 0.01
+                elif atom_symbol == "O":
+                    value = 0.025
+                else:  # Zr
+                    value = 0.0065
+                name = f"{par.name}_{atom_label}_{phase}"
+                tags = [
+                    "adp",
+                    f"adp_{atom_label}",
+                    f"adp_{atom_symbol}_{phase}",
+                    f"adp_{phase}",
+                    f"adp_{atom_symbol}",
+                    str(phase)
+                ]
+                fit_new.addVar(par, value=value, name=name, tags=tags)
+                fit_new.restrain(
+                    par,
+                    lb=0.0, ub=0.1, scaled=True, sig=0.0005
+                )
+                print(f"[INFO]   Added anisotropic ADP '{name}' with initial value {value}")
+        else:
+            # isotropic Uiso handling
+            mapped_adppars = map_sgpar_params(sgpar, "adppars")
+            added_adps = set()
+            for par in sgpar.adppars:
+                try:
+                    atom_symbol = par.par.obj.element
+                    atom_label = mapped_adppars[par.name][1]
+                    if atom_label not in added_adps:
+                        added_adps.add(atom_label)
+                except Exception:
+                    pass
+
+            if unified_Uiso:
+                getattr(cpdf_new, phase).stru.anisotropy = False
+                print(f"[INFO]   Using unified isotropic Uiso for phase '{phase}'")
+                Uiso_O = fit_new.newVar(
+                    f"Uiso_O_{phase}",
+                    value=0.025,
+                    tags=["adp", str(phase), f"adp_{phase}", "adp_O"]
+                )
+                Uiso_Zr = fit_new.newVar(
+                    f"Uiso_Zr_{phase}",
+                    value=0.0065,
+                    tags=["adp", str(phase), f"adp_{phase}", "adp_Zr"]
+                )
+                Uiso_V = fit_new.newVar(
+                    f"Uiso_V_{phase}",
+                    value=0.01,
+                    tags=["adp", str(phase), f"adp_{phase}", "adp_V"]
+                )
+                for atom in getattr(cpdf_new, phase).phase.getScatterers():
+                    if atom.element == "O":
+                        fit_new.constrain(atom.Uiso, Uiso_O)
+                        fit_new.restrain(
+                            atom.Uiso,
+                            lb=0.0, ub=0.1, scaled=True, sig=0.0005
+                        )
+                    if atom.element == "Zr":
+                        fit_new.constrain(atom.Uiso, Uiso_Zr)
+                        fit_new.restrain(
+                            atom.Uiso,
+                            lb=0.0, ub=0.1, scaled=True, sig=0.0005
+                        )
+                    if atom.element == "V":
+                        fit_new.constrain(atom.Uiso, Uiso_V)
+                        fit_new.restrain(
+                            atom.Uiso,
+                            lb=0.0, ub=0.1, scaled=True, sig=0.0005
+                        )
+                print(f"[INFO]   Created shared Uiso_O_{phase}, Uiso_Zr_{phase}, Uiso_V_{phase}")
+            else:
+                getattr(cpdf_new, phase).stru.anisotropy = False
+                print(f"[INFO]   Using independent isotropic Uiso for phase '{phase}'")
+                for atom in getattr(cpdf_new, phase).phase.getScatterers():
+                    if atom.name.upper() in added_adps:
+                        if atom.element == "V":
+                            value = 0.01
+                        elif atom.element == "O":
+                            value = 0.025
+                        else:
+                            value = 0.0065
+                        var_name = f"{atom.name}_{phase}"
+                        fit_new.addVar(
+                            atom.Uiso,
+                            value=value,
+                            name=var_name,
+                            fixed=False,
+                            tags=["adp", str(phase), f"adp_{phase}", f"adp_{atom.element}"]
+                        )
+                        fit_new.restrain(
+                            atom.Uiso,
+                            lb=0.0, ub=0.1, scaled=True, sig=0.0005
+                        )
+                        print(f"[INFO]   Added independent Uiso '{var_name}' with initial value {value}")
+
+        # — add atomic xyz parameters (xyzpars)
+        mapped_xyzpars = map_sgpar_params(sgpar, "xyzpars")
+        added_params[str(phase)] = set()
+        print(f"[INFO]   Adding atomic position variables (xyzpars) for phase '{phase}'")
+        for par in sgpar.xyzpars:
+            try:
+                atom_symbol = par.par.obj.element
+                mapped_name = mapped_xyzpars[par.name][0]
+                atom_label = mapped_xyzpars[par.name][1]
+                name_long = f"{mapped_name}_{phase}"
+                tags = [
+                    "xyz",
+                    f"xyz_{atom_symbol}",
+                    f"xyz_{atom_symbol}_{phase}",
+                    f"xyz_{phase}",
+                    str(phase)
+                ]
+                fit_new.addVar(par, name=name_long, tags=tags)
+                added_params[str(phase)].add(atom_label)
+                print(f"[INFO]     Added xyz variable '{name_long}'")
+            except Exception:
+                pass
+
+    # 1e) Register spherical‐envelope (“psize_”) for each phase
+    phase_equation = ""
+    for phase in cpdf_new._generators:
+        cpdf_new.registerFunction(
+            sphericalCF,
+            name=f"sphere_{phase}",
+            argnames=["r", f"psize_{phase}"]
+        )
+        phase_equation += f"s_{phase}*{phase}*sphere_{phase} + "
+    cpdf_new.setEquation(phase_equation[:-3])
+    print(f"\n[INFO] Updated phase equation with spherical envelope: {cpdf_new.getEquation()}")
+
+    for phase in cpdf_new._generators:
+        fit_new.addVar(
+            getattr(cpdf_new, f"psize_{phase}"),
+            value=100.0,
+            fixed=False,
+            tags=["psize", f"psize_{phase}", str(phase)]
+        )
+        fit_new.restrain(
+            getattr(cpdf_new, f"psize_{phase}"),
+            lb=0.0, scaled=True, sig=0.1
+        )
+        print(f"[INFO] Added psize parameter 'psize_{phase}' with initial value 100.0")
+
+    # 1f) Finally calculate bond‐vectors for each phase (for later rigid‐body)
+    global global_bond_vectors
+    for phase in cpdf_new._generators:
+        bond_vectors = get_polyhedral_bond_vectors(getattr(cpdf_new, phase).phase)
+        global_bond_vectors[phase] = bond_vectors
+        print(f"[INFO] Calculated bond vectors for phase '{phase}'")
+
+    # ------------------------------------------------------------------------------------------------
+    # STEP 2: Copy every matching .value from fit_old → fit_new
+    # ------------------------------------------------------------------------------------------------
+    print("\n[INFO] Copying initial values from previous fit into the new recipe")
+    for name in fit_new.names:
+        if name in fit_old.names:
+            try:
+                oldval = getattr(fit_old, name).value
+                setattr(getattr(fit_new, name), "value", oldval)
+                print(f"[INFO]   Initialized '{name}' to {oldval}")
+            except Exception:
+                # If we cannot overwrite for some reason, skip quietly
+                print(f"[WARNING] Could not copy value for '{name}'; using default")
+                pass
+
+    print("\n[INFO] Completed building new FitRecipe with initial values\n")
+    return fit_new
 
 
 # =============================================================================
@@ -1926,7 +2185,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit0 = modify_fit(fit0, cpdf, 'Pa-3', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 2: Adjust Symmetry =========================
 i = 2
@@ -1934,7 +2193,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit0 = modify_fit(fit0, cpdf, 'P213', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 3: Adjust Symmetry =========================
 i = 3
@@ -1942,7 +2201,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit0 = modify_fit(fit0, cpdf, 'P23', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 4: Further Refinement ======================
 i = 4
@@ -1950,7 +2209,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit0 = modify_fit(fit0, cpdf, 'P23', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 5: Lowest Symmetry =========================
 i = 5
@@ -1959,7 +2218,7 @@ constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
 fit0 = modify_fit(fit0, cpdf, 'P1', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 6: Lowest Symmetry =========================
 i = 6
@@ -1968,7 +2227,7 @@ constrain_angles = (True, 0.0001)
 constrain_dihedrals = (False, 0.001)
 fit0 = modify_fit(fit0, cpdf, 'P1', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # =============================================================================
 #                             FINALIZE RESULTS
@@ -2016,7 +2275,7 @@ cpdf2 = rebuild_cpdf(
 )
 
 # Re‐initialize a brand‐new FitRecipe from cpdf2:
-fit1 = refinement_basic(
+fit1 = refinement_basic_with_initial(fit0,
     cpdf2,
     anisotropic=anisotropic,
     unified_Uiso=unified_Uiso,
@@ -2033,7 +2292,7 @@ constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
 fit1 = modify_fit(fit1, cpdf2, 'Pa-3', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 1: Refinement (new data) ====================
 i = 1
@@ -2041,7 +2300,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit1 = modify_fit(fit1, cpdf2, 'Pa-3', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 2: Adjust Symmetry (new data) ===============
 i = 2
@@ -2049,7 +2308,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit1 = modify_fit(fit1, cpdf2, 'P213', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 3: Adjust Symmetry (new data) ===============
 i = 3
@@ -2057,7 +2316,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit1 = modify_fit(fit1, cpdf2, 'P23', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 4: Further Refinement (new data) ===========
 i = 4
@@ -2065,7 +2324,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit1 = modify_fit(fit1, cpdf2, 'P23', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 5: Lowest Symmetry (new data) ==============
 i = 5
@@ -2074,7 +2333,7 @@ constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
 fit1 = modify_fit(fit1, cpdf2, 'P1', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 6: Lowest Symmetry (new data) ==============
 i = 6
@@ -2083,7 +2342,7 @@ constrain_angles = (True, 0.0001)
 constrain_dihedrals = (False, 0.001)
 fit1 = modify_fit(fit1, cpdf2, 'P1', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # =============================================================================
 #                             FINALIZE RESULTS (new data)
