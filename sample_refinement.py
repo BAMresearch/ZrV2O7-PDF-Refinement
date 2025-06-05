@@ -1926,6 +1926,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit0 = modify_fit(fit0, cpdf, 'Pa-3', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 2: Adjust Symmetry =========================
 i = 2
@@ -1933,6 +1934,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit0 = modify_fit(fit0, cpdf, 'P213', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 3: Adjust Symmetry =========================
 i = 3
@@ -1940,6 +1942,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit0 = modify_fit(fit0, cpdf, 'P23', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 4: Further Refinement ======================
 i = 4
@@ -1947,6 +1950,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit0 = modify_fit(fit0, cpdf, 'P23', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 5: Lowest Symmetry =========================
 i = 5
@@ -1955,6 +1959,7 @@ constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
 fit0 = modify_fit(fit0, cpdf, 'P1', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 6: Lowest Symmetry =========================
 i = 6
@@ -1963,6 +1968,7 @@ constrain_angles = (True, 0.0001)
 constrain_dihedrals = (False, 0.001)
 fit0 = modify_fit(fit0, cpdf, 'P1', sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # =============================================================================
 #                             FINALIZE RESULTS
@@ -2035,6 +2041,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit1 = modify_fit(fit1, cpdf2, 'Pa-3', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 2: Adjust Symmetry (new data) ===============
 i = 2
@@ -2042,6 +2049,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit1 = modify_fit(fit1, cpdf2, 'P213', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 3: Adjust Symmetry (new data) ===============
 i = 3
@@ -2049,6 +2057,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit1 = modify_fit(fit1, cpdf2, 'P23', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 4: Further Refinement (new data) ===========
 i = 4
@@ -2056,6 +2065,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit1 = modify_fit(fit1, cpdf2, 'P23', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 5: Lowest Symmetry (new data) ==============
 i = 5
@@ -2064,6 +2074,7 @@ constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
 fit1 = modify_fit(fit1, cpdf2, 'P1', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 6: Lowest Symmetry (new data) ==============
 i = 6
@@ -2072,6 +2083,7 @@ constrain_angles = (True, 0.0001)
 constrain_dihedrals = (False, 0.001)
 fit1 = modify_fit(fit1, cpdf2, 'P1', sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # =============================================================================
 #                             FINALIZE RESULTS (new data)
