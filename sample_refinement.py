@@ -1607,12 +1607,12 @@ def fit_me(i, fitting_range, myrstep, fitting_order, fit, cpdf, residualEquation
             continue
      
     
-    res = saveResults(i,fit, output_results_path)
+    res = saveResults(i, fit, cpdf, output_results_path)
 
     #Statistics on the bond lengths and angle distributionsc
     for phase_name in cpdf._generators:
         phase = getattr(cpdf,str(phase_name)).phase
-        visuals = visualize_fit_summary(fit, phase, output_results_path+str(i)+'_'+str(phase_name)+'_', font_size=14, label_font_size=20)
+        visuals = visualize_fit_summary(fit, cpdf, phase, output_results_path+str(i)+'_'+str(phase_name)+'_', font_size=14, label_font_size=20)
     return
 
 #-----------------------------------------------------------------------------
