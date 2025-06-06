@@ -1757,7 +1757,7 @@ def rebuild_cpdf(old_cpdf, r_obs, g_obs, myrange, myrstep, ncpu, pool, name='cpd
         print(f"[DEBUG] Rebuilding phase generator: '{phase_name}'")
         old_gen = getattr(old_cpdf, phase_name)
         try:
-            old_structure = old_gen.phase.stru
+            old_structure = old_gen.phase.stru.copy()
         except Exception:
             print(f"[WARNING] Could not access Structure for '{phase_name}'; skipping.")
             continue
@@ -2108,6 +2108,136 @@ def refinement_basic_with_initial(
         fit_new.fithooks[0].verbose = 2
 
     return fit_new
+
+#-----------------------------------------------------------------------------
+def compare_fits(fitA, fitB, tol=1e-8):
+    """
+    Compare two FitRecipe objects and print any differences in:
+      1) Variable sets (names present in one but not the other)
+      2) Variable values for names common to both
+      3) Restraints (lb, ub, sig) on each parameter
+
+    Only differences are printed. `tol` is the tolerance for comparing numeric values.
+
+    Parameters:
+    -----------
+    fitA, fitB : FitRecipe
+        The two FitRecipe instances to compare.
+    tol : float, optional
+        Tolerance for comparing numeric values (default: 1e-8).
+
+    Returns:
+    --------
+    None; prints differences to stdout.
+    """
+    from math import isclose
+
+    def gather_restraints(fit):
+        """
+        Build a dict mapping parameter‐name → (lb, ub, sig) for every restraint in fit._oconstraints.
+        If a parameter has multiple restraints, only the first is recorded.
+        """
+        restraints = {}
+        for c in fit._oconstraints:
+            pname = c.par.name
+            # Some constraints may not have lb/ub/sig attributes; handle gracefully
+            lb = getattr(c, "lb", None)
+            ub = getattr(c, "ub", None)
+            sig = getattr(c, "sig", None)
+            if pname not in restraints:
+                restraints[pname] = (lb, ub, sig)
+        return restraints
+
+    # 1) Compare variable name sets
+    namesA = set(fitA.names)
+    namesB = set(fitB.names)
+
+    onlyA = sorted(namesA - namesB)
+    onlyB = sorted(namesB - namesA)
+    if onlyA:
+        print("Variables only in fitA:")
+        for n in onlyA:
+            print(f"  {n}")
+        print()
+    if onlyB:
+        print("Variables only in fitB:")
+        for n in onlyB:
+            print(f"  {n}")
+        print()
+
+    # 2) Compare values for names common to both
+    common = sorted(namesA & namesB)
+    diffs = []
+    for name in common:
+        valA = getattr(fitA, name).value
+        valB = getattr(fitB, name).value
+        # If either value is None or not numeric, compare directly
+        if valA is None or valB is None:
+            if valA != valB:
+                diffs.append((name, valA, valB))
+        else:
+            try:
+                if not isclose(valA, valB, rel_tol=tol, abs_tol=tol):
+                    diffs.append((name, valA, valB))
+            except Exception:
+                # In case valA or valB is not numeric
+                if valA != valB:
+                    diffs.append((name, valA, valB))
+
+    if diffs:
+        print("Variable value differences (name: fitA → fitB):")
+        for name, a, b in diffs:
+            print(f"  {name}: {a} → {b}")
+        print()
+
+    # 3) Compare restraints (lb, ub, sig)
+    resA = gather_restraints(fitA)
+    resB = gather_restraints(fitB)
+
+    keysA = set(resA.keys())
+    keysB = set(resB.keys())
+
+    onlyResA = sorted(keysA - keysB)
+    onlyResB = sorted(keysB - keysA)
+    if onlyResA:
+        print("Restraints only in fitA:")
+        for pname in onlyResA:
+            lb, ub, sig = resA[pname]
+            print(f"  {pname}: lb={lb}, ub={ub}, sig={sig}")
+        print()
+    if onlyResB:
+        print("Restraints only in fitB:")
+        for pname in onlyResB:
+            lb, ub, sig = resB[pname]
+            print(f"  {pname}: lb={lb}, ub={ub}, sig={sig}")
+        print()
+
+    commonRes = sorted(keysA & keysB)
+    res_diffs = []
+    for pname in commonRes:
+        lbA, ubA, sigA = resA[pname]
+        lbB, ubB, sigB = resB[pname]
+        # Compare each numeric field with tolerance; treat None separately
+        def diff_field(a, b):
+            if a is None or b is None:
+                return a != b
+            try:
+                return not isclose(a, b, rel_tol=tol, abs_tol=tol)
+            except Exception:
+                return a != b
+
+        if diff_field(lbA, lbB) or diff_field(ubA, ubB) or diff_field(sigA, sigB):
+            res_diffs.append((pname, (lbA, ubA, sigA), (lbB, ubB, sigB)))
+
+    if res_diffs:
+        print("Restraint differences (parameter: fitA(lb,ub,sig) → fitB(lb,ub,sig)):")
+        for pname, (lA, uA, sA), (lB, uB, sB) in res_diffs:
+            print(f"  {pname}: ({lA}, {uA}, {sA}) → ({lB}, {uB}, {sB})")
+        print()
+
+    if not (onlyA or onlyB or diffs or onlyResA or onlyResB or res_diffs):
+        print("No differences found between the two FitRecipe objects.")
+
 
 
 # =============================================================================
