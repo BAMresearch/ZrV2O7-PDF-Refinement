@@ -1631,7 +1631,11 @@ def modify_fit(fit, cpdf, spacegroup, sgoffset=[0, 0, 0]):
 
     # Step 3: Delete the old variables and clear added_params for each phase
     for name in old_xyz_vars.keys():
+        
+        #Deep cleaning...scrub...scrub
         fit.unconstrain(getattr(fit, name))
+        fit.clearConstraints(getattr(fit, name))
+        fit.clearRestraints(getattr(fit, name))
         fit.delVar(getattr(fit, name))
         print(f"{name}: old variable deleted")
 
@@ -1644,6 +1648,8 @@ def modify_fit(fit, cpdf, spacegroup, sgoffset=[0, 0, 0]):
         if name.startswith('bond_') or name.startswith('angle_') or name.startswith('dihedral_'):
             try:
                 fit.unconstrain(getattr(fit, name))
+                fit.clearConstraints(getattr(fit, name))
+                fit.clearRestraints(getattr(fit, name))
                 fit.delVar(getattr(fit, name))
                 print(f"{name}: old variable deleted")
             except Exception:
@@ -1685,6 +1691,8 @@ def modify_fit(fit, cpdf, spacegroup, sgoffset=[0, 0, 0]):
     for name in old_lattice_vars.keys():
         try:
             fit.unconstrain(getattr(fit, name))
+            fit.clearConstraints(getattr(fit, name))
+            fit.clearRestraints(getattr(fit, name))
             fit.delVar(getattr(fit, name))
             print(f"{name}: old variable deleted")
         except Exception:
