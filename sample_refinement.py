@@ -1634,8 +1634,8 @@ def modify_fit(fit, cpdf, spacegroup, sgoffset=[0, 0, 0]):
         
         #Deep cleaning...scrub...scrub
         fit.unconstrain(getattr(fit, name))
-        fit.clearConstraints(getattr(fit, name))
-        fit.clearRestraints(getattr(fit, name))
+        # fit.clearConstraints(getattr(fit, name))
+        # fit.clearRestraints(getattr(fit, name))
         fit.delVar(getattr(fit, name))
         print(f"{name}: old variable deleted")
 
@@ -1648,8 +1648,8 @@ def modify_fit(fit, cpdf, spacegroup, sgoffset=[0, 0, 0]):
         if name.startswith('bond_') or name.startswith('angle_') or name.startswith('dihedral_'):
             try:
                 fit.unconstrain(getattr(fit, name))
-                fit.clearConstraints(getattr(fit, name))
-                fit.clearRestraints(getattr(fit, name))
+                # fit.clearConstraints(getattr(fit, name))
+                # fit.clearRestraints(getattr(fit, name))
                 fit.delVar(getattr(fit, name))
                 print(f"{name}: old variable deleted")
             except Exception:
@@ -1691,8 +1691,8 @@ def modify_fit(fit, cpdf, spacegroup, sgoffset=[0, 0, 0]):
     for name in old_lattice_vars.keys():
         try:
             fit.unconstrain(getattr(fit, name))
-            fit.clearConstraints(getattr(fit, name))
-            fit.clearRestraints(getattr(fit, name))
+            # fit.clearConstraints(getattr(fit, name))
+            # fit.clearRestraints(getattr(fit, name))
             fit.delVar(getattr(fit, name))
             print(f"{name}: old variable deleted")
         except Exception:
@@ -2339,7 +2339,7 @@ constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
 fit0 = modify_fit(fit0, cpdf, ['Pa-3'], sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # # ========================== Step 1: Refinement ==============================
 i = 1
@@ -2394,7 +2394,7 @@ fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, const
 # =============================================================================
 #                             FINALIZE RESULTS
 # =============================================================================
-#finalize_results(cpdf, fit0, output_results_path, myrange, myrstep)
+finalize_results(cpdf, fit0, output_results_path, myrange, myrstep)
 
 
 # =============================================================================
@@ -2459,7 +2459,7 @@ constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
 fit1 = modify_fit(fit1, cpdf2, ['Pa-3'], sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 1: Refinement (new data) ====================
 i = 1
@@ -2514,7 +2514,7 @@ fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, cons
 # =============================================================================
 #                             FINALIZE RESULTS (new data)
 # =============================================================================
-#finalize_results(cpdf2, fit1, output_results_path, myrange, myrstep)
+finalize_results(cpdf2, fit1, output_results_path, myrange, myrstep)
 
 # =============================================================================
 # End of script
