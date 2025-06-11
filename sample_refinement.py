@@ -143,7 +143,7 @@ def plotmyfit(fit, cpdf, baseline=-4, ax=None):
     df = pd.DataFrame({'x': x, 'yobs': yobs, 'ycalc': ycalc, 'ydiff': ydiff})
     return rv, df
 
-
+#=============================================================================
 def visualize_fit_summary(fit, cpdf, phase, output_plot_path, font_size=14, label_font_size=20):
     """
     Visualize and summarize the fit results, including PDF data, bond lengths, and bond angles.
@@ -342,8 +342,57 @@ def visualize_fit_summary(fit, cpdf, phase, output_plot_path, font_size=14, labe
     plt.tight_layout()
     plt.savefig(output_plot_path + 'summary_plot.pdf', dpi=600)
     plt.show()
-
-
+#----------------------------------------------------------------------------
+def evaluate_and_plot(cpdf, fitting_range, csv_filename):
+    """
+    Evaluate model vs. data over a limited r-range, compute Rw,
+    plot G_obs and G_sim with Rw annotation, and save to CSV.
+    
+    Parameters:
+    - cpdf: PDFContribution object, with observed profile already set.
+    - fitting_range: tuple or list [rmin, rmax]
+    - csv_filename: str, path to output CSV file
+    """
+    import matplotlib.pyplot as plt
+    # 1) Evaluate simulated G(r)
+    g_sim = cpdf.evaluate()
+    
+    # 2) Extract observed data
+    r = np.array(cpdf.profile.x)
+    g_obs = np.array(cpdf.profile.y)
+    
+    # 3) Mask to fitting range
+    rmin, rmax = fitting_range
+    mask = (r >= rmin) & (r <= rmax)
+    r_fit = r[mask]
+    g_obs_fit = g_obs[mask]
+    g_sim_fit = g_sim[mask]
+    g_diff_fit = g_obs_fit - g_sim_fit
+    
+    # 4) Compute Rw
+    #    Rw = sqrt( sum((Gobs-Gsim)^2) / sum(Gobs^2) )
+    Rw = np.sqrt(np.sum(g_diff_fit**2) / np.sum(g_obs_fit**2))
+    
+    # 5) Plot
+    plt.figure(figsize=(6,4))
+    plt.plot(r_fit, g_obs_fit, 'o', label='G$_{obs}$', markersize=4, markeredgecolor='blue', markerfacecolor='none')
+    plt.plot(r_fit, g_sim_fit,  '-', label='G$_{sim}$', linewidth=1.5, color='red')
+    plt.xlabel('r (Å)')
+    plt.ylabel('G(r) (Å$^{-2}$)')
+    plt.title(f'PDF Simulation (Rw = {Rw:.4f})')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    
+    # 6) Save to CSV
+    df = pd.DataFrame({
+        'r':       r_fit,
+        'G_obs':   g_obs_fit,
+        'G_sim':   g_sim_fit,
+        'G_diff':  g_diff_fit
+    })
+    df.to_csv(csv_filename, index=False)
+    print(f"Saved data to {csv_filename}")
 #----------------------------------------------------------------------------
 
 def export_cifs(i, cpdf, output_path):
@@ -469,21 +518,38 @@ def finalize_results(cpdf, fit, output_results_path, myrange, myrstep):
 #=============================================================================
 def simulatePDF(file, **config):
     """
-    Simulate a PDF from a crystal structure file using the given configuration.
+    Simulate a single‐phase PDF, optionally damping with a spherical particle envelope.
 
-    Parameters:
-    - file: String, path to the crystal structure file (e.g., CIF).
-    - **config: Additional keyword arguments for PDFCalculator (e.g., rmin, rmax, qmin, qmax).
+    Parameters
+    ----------
+    file : str
+        Path to a CIF (or other DiffPy‐readable) structure file.
+    **config :
+        rmin, rmax, rstep, qmin, qmax, qdamp, qbroad   ← for PDFCalculator
+        psize                                        ← spherical particle diameter (Å)
 
-    Returns:
-    - df: Pandas DataFrame with columns ['r', 'g'] representing the simulated PDF.
+    Returns
+    -------
+    df : pd.DataFrame
+        Two‐column DataFrame with 'r' and 'g'.
     """
-    phase = loadCrystal(file)
-    pdf = PDFCalculator(**config)
-    r, g = pdf(phase)
-    df = pd.DataFrame([r, g]).T
-    df.columns = ('r', 'g')
-    return df
+    # 1) split out the core PDF‐calculator args
+    core = {k: v for k, v in config.items()
+            if k in ('rmin','rmax','rstep','qmin','qmax','qdamp','qbroad')}
+    # 2) make the calculator
+    pdfc = PDFCalculator(**core)
+
+    # 3) if the user passed psize=…, set the spherical‐shape envelope
+    if 'psize' in config:
+        pdfc.spdiameter = config['psize']
+
+    # 4) load the structure and run
+    stru = loadStructure(file)
+    r, g = pdfc(stru)
+
+    # 5) wrap in a DataFrame
+    return pd.DataFrame({'r': r, 'g': g})
+
 
 
 #----------------------------------------------------------------------------
@@ -2254,7 +2320,7 @@ def compare_fits(fitA, fitB, tol=1e-8):
 
 # =============================== Input Definitions ===========================
 # Define project name and directories
-project_name = 'ZirconiumVanadate25C209CperiodicTests_2/'
+project_name = 'ZirconiumVanadate25C209CperiodicSequential/'
 xrd_directory = 'data/'   # Directory containing diffraction data
 cif_directory = 'CIFs/'    # Directory containing CIF files
 fit_directory = 'fits/'    # Base directory for storing refinement results
@@ -2325,6 +2391,7 @@ fit0 = refinement_basic(
 )
 
 
+
 # =============================================================================
 #                               FITTING STEPS
 # =============================================================================
@@ -2347,7 +2414,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit0 = modify_fit(fit0, cpdf, ['Pa-3'], sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 2: Adjust Symmetry =========================
 i = 2
@@ -2355,7 +2422,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit0 = modify_fit(fit0, cpdf, ['P213'], sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # # ========================== Step 3: Adjust Symmetry =========================
 i = 3
@@ -2363,7 +2430,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit0 = modify_fit(fit0, cpdf, ['P23'], sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 4: Further Refinement ======================
 i = 4
@@ -2371,7 +2438,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit0 = modify_fit(fit0, cpdf, ['P23'], sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 5: Lowest Symmetry =========================
 i = 5
@@ -2380,7 +2447,7 @@ constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
 fit0 = modify_fit(fit0, cpdf, ['P1'], sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 6: Lowest Symmetry =========================
 i = 6
@@ -2389,7 +2456,7 @@ constrain_angles = (True, 0.0001)
 constrain_dihedrals = (False, 0.001)
 fit0 = modify_fit(fit0, cpdf, ['P1'], sgoffset=sgoffset)
 fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
 # =============================================================================
 #                             FINALIZE RESULTS
@@ -2441,7 +2508,7 @@ fit1 = refinement_basic_with_initial(fit0,
     cpdf2, ['Pa-3'],
     anisotropic=anisotropic,
     unified_Uiso=unified_Uiso,
-    sgoffset=sgoffset)
+    sgoffset=sgoffset, recalculate_bond_vectors=True)
     
 # fit1 = refinement_basic(cpdf2,
 #     anisotropic=anisotropic,
@@ -2467,7 +2534,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit1 = modify_fit(fit1, cpdf2, ['Pa-3'], sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 2: Adjust Symmetry (new data) ===============
 i = 2
@@ -2475,7 +2542,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit1 = modify_fit(fit1, cpdf2, ['P213'], sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 3: Adjust Symmetry (new data) ===============
 i = 3
@@ -2483,7 +2550,7 @@ constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
 fit1 = modify_fit(fit1, cpdf2, ['P23'], sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 4: Further Refinement (new data) ===========
 i = 4
@@ -2491,7 +2558,7 @@ constrain_bonds = (True, 0.0001)
 constrain_angles = (True, 0.0001)
 fit1 = modify_fit(fit1, cpdf2, ['P23'], sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 5: Lowest Symmetry (new data) ==============
 i = 5
@@ -2500,7 +2567,7 @@ constrain_angles = (True, 0.001)
 constrain_dihedrals = (False, 0.001)
 fit1 = modify_fit(fit1, cpdf2, ['P1'], sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # ========================== Step 6: Lowest Symmetry (new data) ==============
 i = 6
@@ -2509,12 +2576,75 @@ constrain_angles = (True, 0.0001)
 constrain_dihedrals = (False, 0.001)
 fit1 = modify_fit(fit1, cpdf2, ['P1'], sgoffset=sgoffset)
 fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-#fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
 # =============================================================================
 #                             FINALIZE RESULTS (new data)
 # =============================================================================
 finalize_results(cpdf2, fit1, output_results_path, myrange, myrstep)
+
+
+
+# =============================================================================
+# Simulate PDFs
+# =============================================================================
+
+# Directories and files
+cif_directory = 'fits/ZirconiumVanadate25C209CperiodicSequential/07062025_152916/'
+ciffile = {'Phase0_6.cif': ['P1', True, (1, 1, 1)]}
+
+# Re‐generate a “dummy” observed PDF (so you can overlay simulated on the same grid)
+xrd_directory = 'data/'
+mypowderdata   = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
+composition    = 'O7 V2 Zr1'
+
+qdamp   = 2.70577268e-02
+qbroad  = 2.40376789e-06
+qmax    = 22.0
+myrange = (0.0, 80.0)
+myrstep = 0.05
+
+r0_simulated, g0_simulated, cfg_simulated = generatePDF(
+    xrd_directory + mypowderdata,
+    composition,
+    qmin    = 0.0,
+    qmax    = qmax,
+    myrange = myrange,
+    myrstep = myrstep
+)
+
+# Build the simulation‐only PDFContribution
+cpdf_simulated = phase(
+    r0_simulated, g0_simulated, cfg_simulated,
+    cif_directory, ciffile,
+    myrange, myrstep,
+    qdamp, qbroad
+)
+
+# Register spherical envelope and set the phase equation
+phase_equation = ""
+for ph in cpdf_simulated._generators:
+    cpdf_simulated.registerFunction(
+        sphericalCF,
+        name     = f"sphere_{ph}",
+        argnames = ["r", f"psize_{ph}"]
+    )
+    phase_equation += f"s_{ph}*{ph}*sphere_{ph} + "
+cpdf_simulated.setEquation(phase_equation.rstrip(" + "))
+
+# Inject your optimized parameters
+cpdf_simulated.s_Phase0.value      = 4.92399836e-01
+cpdf_simulated.psize_Phase0        = 2.66658626e+02
+cpdf_simulated.Phase0.delta2.value = 2.53696631e+00
+
+# Evaluate over 1.5–27 Å, compute Rw, plot & save CSV
+evaluate_and_plot(
+    cpdf_simulated,
+    fitting_range = [1.5, 27],
+    csv_filename  = 'sim_vs_obs.csv'
+)
+
+
 
 # =============================================================================
 # End of script
