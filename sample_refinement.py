@@ -2184,6 +2184,56 @@ def refinement_basic_with_initial(
     return fit_new
 
 #-----------------------------------------------------------------------------
+def copy_phase_structure(cpdf_target, cpdf_source, phase_index=0):
+    """
+    Copy x,y,z positions of matching atoms from cpdf_source to cpdf_target
+    for a given phase (default Phase0), printing each change.
+
+    Parameters
+    ----------
+    cpdf_target : PDFContribution
+        The “main” PDFContribution you want to update.
+    cpdf_source : PDFContribution
+        The PDFContribution containing the special (refined) structure.
+    phase_index : int, optional
+        Which phase to copy (0 → "Phase0", 1 → "Phase1", …).
+    """
+    phase_name = f"Phase{phase_index}"
+    gen_tgt = getattr(cpdf_target, phase_name)
+    gen_src = getattr(cpdf_source, phase_name)
+
+    # Prepare source scatterers
+    src_scats = gen_src.stru
+    # Assign unique labels to avoid collisions (element + index)
+    src_scats.assignUniqueLabels()
+    # Build a lookup map from scatterer label to object
+    src_map = {atom.label: atom for atom in src_scats}
+
+    n_copied = 0
+    # Prepare target scatterers similarly
+    gen_tgt.stru.assignUniqueLabels()
+    for atom in gen_tgt.stru:
+        label = atom.label
+        if label in src_map:
+            # Record old coordinates before updating
+            old = (atom.x, atom.y, atom.z)
+            # Get new coordinates from source
+            src = src_map[label]
+            new = (src.x, src.y, src.z)
+            # Apply new coordinates to target scatterer
+            atom.x = new[0]
+            atom.y = new[1]
+            atom.z = new[2]
+            # Print change for traceability
+            print(f"Atom {label}: ({old[0]:.5f}, {old[1]:.5f}, {old[2]:.5f}) → "
+                  f"({new[0]:.5f}, {new[1]:.5f}, {new[2]:.5f})")
+            n_copied += 1
+
+    # Summary of copied atoms
+    print(f"Copied xyz of {n_copied} atoms from {phase_name} of source → target.")
+
+
+#-----------------------------------------------------------------------------
 def compare_fits(fitA, fitB, tol=1e-8):
     """
     Compare two FitRecipe objects and print any differences in:
@@ -2320,7 +2370,7 @@ def compare_fits(fitA, fitB, tol=1e-8):
 
 # =============================== Input Definitions ===========================
 # Define project name and directories
-project_name = 'ZirconiumVanadate25C209CperiodicSequential/'
+project_name = 'ZirconiumVanadate25C209CperiodicCustomModels/'
 xrd_directory = 'data/'   # Directory containing diffraction data
 cif_directory = 'CIFs/'    # Directory containing CIF files
 fit_directory = 'fits/'    # Base directory for storing refinement results
@@ -2389,6 +2439,39 @@ fit0 = refinement_basic(
     unified_Uiso=unified_Uiso,
     sgoffset=sgoffset
 )
+
+
+#----------------------------------------------------------------------
+#                       SPECIAL STRUCTURE MODIFICATION
+#----------------------------------------------------------------------
+# Here we load a “special” refined structure from a previous PDF refinement
+# (e.g. the result of refining Phase0 at 25 °C in space group P1, replicate (1×1×1)).
+# This refined CIF contains updated atomic positions that broke higher symmetry
+# constraints in order to capture subtle distortions at this temperature.
+cif_directory_special = 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/'  # folder with the refined‐structure CIFs
+# Define the special CIF: filename → [space group, periodicity, supercell dims]
+# ‘P1’ means no symmetry constraints, so all atom positions were independently refined.
+# True indicates the structure is treated as periodic; (1,1,1) means no supercell expansion.
+ciffile_special = {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
+
+# Build a PDFContribution for this “special” structure using the same PDF data (r0, g0).
+# This gives us access to the fully‐refined atomic coordinates under P1.
+cpdf_special = phase(
+    r0, g0, cfg,
+    cif_directory_special, ciffile_special,
+    myrange, myrstep,
+    qdamp, qbroad
+)
+
+# At this point we have two contributions:
+#  - cpdf         : the original model with higher‐symmetry CIF(s)
+#  - cpdf_special : the P1‐refined model with individually‐refined atom positions
+# We now transfer the refined Phase0 atomic coordinates from cpdf_special → cpdf,
+# so that subsequent refinements begin from these updated positions.
+copy_phase_structure(cpdf, cpdf_special, phase_index=0)
+
+
+
 
 
 
@@ -2464,10 +2547,7 @@ fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, o
 finalize_results(cpdf, fit0, output_results_path, myrange, myrstep)
 
 
-# =============================================================================
-# =============================================================================
-# =============================================================================
-# =============================================================================
+
 # =============================================================================
 #                   CONTINUE FITTING WITH DIFFERENT DATA
 # =============================================================================
@@ -2510,11 +2590,7 @@ fit1 = refinement_basic_with_initial(fit0,
     unified_Uiso=unified_Uiso,
     sgoffset=sgoffset, recalculate_bond_vectors=True)
     
-# fit1 = refinement_basic(cpdf2,
-#     anisotropic=anisotropic,
-#     unified_Uiso=unified_Uiso,
-#     sgoffset=sgoffset
-# )
+
 
 # ========================== Step 0: Initial Fit (new data) ==================
 i = 0
@@ -2585,67 +2661,78 @@ finalize_results(cpdf2, fit1, output_results_path, myrange, myrstep)
 
 
 
-# =============================================================================
-# Simulate PDFs
-# =============================================================================
+# # =============================================================================
+# # Simulate PDFs
+# # =============================================================================
 
-# Directories and files
-cif_directory = 'fits/ZirconiumVanadate25C209CperiodicSequential/07062025_152916/'
-ciffile = {'Phase0_6.cif': ['P1', True, (1, 1, 1)]}
+# # Directories and files
+# cif_directory = 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/'
+# ciffile = {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
+# #ciffile = {'25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
 
-# Re‐generate a “dummy” observed PDF (so you can overlay simulated on the same grid)
-xrd_directory = 'data/'
-mypowderdata   = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
-composition    = 'O7 V2 Zr1'
+# # Re‐generate a “dummy” observed PDF (so you can overlay simulated on the same grid)
+# xrd_directory = 'data/'
+# mypowderdata   = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
+# composition    = 'O7 V2 Zr1'
 
-qdamp   = 2.70577268e-02
-qbroad  = 2.40376789e-06
-qmax    = 22.0
-myrange = (0.0, 80.0)
-myrstep = 0.05
+# qdamp   = 2.70577268e-02
+# qbroad  = 2.40376789e-06
+# qmax    = 22.0
+# myrange = (0.0, 80.0)
+# myrstep = 0.05
 
-r0_simulated, g0_simulated, cfg_simulated = generatePDF(
-    xrd_directory + mypowderdata,
-    composition,
-    qmin    = 0.0,
-    qmax    = qmax,
-    myrange = myrange,
-    myrstep = myrstep
-)
+# r0_simulated, g0_simulated, cfg_simulated = generatePDF(
+#     xrd_directory + mypowderdata,
+#     composition,
+#     qmin    = 0.0,
+#     qmax    = qmax,
+#     myrange = myrange,
+#     myrstep = myrstep
+# )
 
-# Build the simulation‐only PDFContribution
-cpdf_simulated = phase(
-    r0_simulated, g0_simulated, cfg_simulated,
-    cif_directory, ciffile,
-    myrange, myrstep,
-    qdamp, qbroad
-)
+# # Build the simulation‐only PDFContribution
+# cpdf_simulated = phase(
+#     r0_simulated, g0_simulated, cfg_simulated,
+#     cif_directory, ciffile,
+#     myrange, myrstep,
+#     qdamp, qbroad
+# )
 
-# Register spherical envelope and set the phase equation
-phase_equation = ""
-for ph in cpdf_simulated._generators:
-    cpdf_simulated.registerFunction(
-        sphericalCF,
-        name     = f"sphere_{ph}",
-        argnames = ["r", f"psize_{ph}"]
-    )
-    phase_equation += f"s_{ph}*{ph}*sphere_{ph} + "
-cpdf_simulated.setEquation(phase_equation.rstrip(" + "))
+# # Register spherical envelope and set the phase equation
+# phase_equation = ""
+# for ph in cpdf_simulated._generators:
+#     cpdf_simulated.registerFunction(
+#         sphericalCF,
+#         name     = f"sphere_{ph}",
+#         argnames = ["r", f"psize_{ph}"]
+#     )
+#     phase_equation += f"s_{ph}*{ph}*sphere_{ph} + "
+# cpdf_simulated.setEquation(phase_equation.rstrip(" + "))
 
-# Inject your optimized parameters
-cpdf_simulated.s_Phase0.value      = 4.92399836e-01
-cpdf_simulated.psize_Phase0        = 2.66658626e+02
-cpdf_simulated.Phase0.delta2.value = 2.53696631e+00
-
-# Evaluate over 1.5–27 Å, compute Rw, plot & save CSV
-evaluate_and_plot(
-    cpdf_simulated,
-    fitting_range = [1.5, 27],
-    csv_filename  = 'sim_vs_obs.csv'
-)
+# # Inject optimized parameters
+# cpdf_simulated.s_Phase0.value      = 4.92399836e-01
+# cpdf_simulated.psize_Phase0        = 2.66658626e+02
+# cpdf_simulated.Phase0.delta2.value = 2.53696631e+00
 
 
+# #set Uiso by element
+# default_Uiso = {'Zr':5.79086780e-04, 'V':3.21503909e-03, 'O':7.21519003e-03}
 
-# =============================================================================
-# End of script
-# =============================================================================
+# for ph in cpdf_simulated._generators:
+#     stru = getattr(cpdf_simulated, ph).phase
+#     for atom in stru.getScatterers():
+#         if atom.element in default_Uiso:
+#             atom.Uiso.value = default_Uiso[atom.element]
+
+# # Evaluate over 1.5–27 Å, compute Rw, plot & save CSV
+# evaluate_and_plot(
+#     cpdf_simulated,
+#     fitting_range = [1.5, 27],
+#     csv_filename  = 'sim_vs_obs.csv'
+# )
+
+
+
+# # =============================================================================
+# # End of script
+# # =============================================================================
