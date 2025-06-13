@@ -100,12 +100,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # =============================================================================
 # Visualisation and summary functions
 # =============================================================================
-def plotmyfit(fit, cpdf, baseline=-4, ax=None):
+def plotmyfit(cpdf, baseline=-4, ax=None):
     """
     Plot the observed, calculated, and difference (Gobs, Gcalc, Gdiff) PDFs.
 
     Parameters:
-    - fit: FitRecipe object (not used for evaluation here).
     - cpdf: PDFContribution object, containing observed profile + model.
     - baseline: Float, baseline offset for difference plot (default: -4).
     - ax: Matplotlib axis object, optional. If None, a new axis is created.
@@ -144,7 +143,7 @@ def plotmyfit(fit, cpdf, baseline=-4, ax=None):
     return rv, df
 
 #=============================================================================
-def visualize_fit_summary(fit, cpdf, phase, output_plot_path, font_size=14, label_font_size=20):
+def visualize_fit_summary(cpdf, phase, output_plot_path, font_size=14, label_font_size=20):
     """
     Visualize and summarize the fit results, including PDF data, bond lengths, and bond angles.
 
@@ -439,7 +438,7 @@ def saveResults(i, fit, cpdf, output_results_path):
 
     # Plot and save the “fit vs. data” figure, passing cpdf explicitly
     fig0, ax0 = subplots()
-    fig, df = plotmyfit(fit, cpdf, ax=ax0)
+    fig, df = plotmyfit(cpdf, ax=ax0)
     fig0.savefig(output_results_path + f'fitting_{i}.png', dpi=600)
 
     # Save G(r), G_calc, and G_diff to CSV
@@ -494,7 +493,7 @@ def finalize_results(cpdf, fit, output_results_path, myrange, myrstep):
         for phase in scale_factors:
             getattr(cpdf, 's_' + phase).value = scale_factors[phase]
             fig0, ax0 = subplots()
-            fig, df = plotmyfit(fit, cpdf, ax=ax0)
+            fig, df = plotmyfit(cpdf, ax=ax0)
             fig0.savefig(output_results_path + f'{phase}_partial_fit.png', dpi=600)
             df.to_csv(output_results_path + f'{phase}_partial.csv', index=False)
             getattr(cpdf, 's_' + phase).value = 0
@@ -1508,7 +1507,7 @@ def fit_me(i, fitting_range, myrstep, fitting_order, fit, cpdf, residualEquation
     # Statistics on the bond lengths and angle distributions
     for phase_name in cpdf._generators:
         phase = getattr(cpdf, str(phase_name)).phase
-        visualize_fit_summary(fit, cpdf, phase, output_results_path + f"{i}_{phase_name}_", font_size=14, label_font_size=20)
+        visualize_fit_summary(cpdf, phase, output_results_path + f"{i}_{phase_name}_", font_size=14, label_font_size=20)
     return
 
 
@@ -2664,73 +2663,155 @@ finalize_results(cpdf2, fit1, output_results_path, myrange, myrstep)
 # # =============================================================================
 # # Simulate PDFs
 # # =============================================================================
+def simulate_pdf_workflow(
+    cif_directory,
+    ciffile,
+    xrd_directory,
+    powder_data_file,
+    composition,
+    qdamp,
+    qbroad,
+    qmax,
+    r_range,
+    r_step,
+    optimized_params,
+    default_Uiso,
+    fitting_range,
+    csv_filename,
+    output_results_path='',
+    font_size=14,
+    label_font_size=20
+):
+    """
+    Generate and simulate PDFs from experimental XRD data and CIF structures,
+    apply spherical envelope functions, inject optimized parameters,
+    evaluate fit, save results, and visualize summaries.
+    """
+    # Step 1: Generate a “dummy” observed PDF for overlay comparison
+    r0_simulated, g0_simulated, cfg_simulated = generatePDF(
+        xrd_directory + powder_data_file,
+        composition,
+        qmin    = 0.0,
+        qmax    = qmax,
+        myrange = r_range,
+        myrstep = r_step
+    )
 
-# # Directories and files
-# cif_directory = 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/'
-# ciffile = {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
-# #ciffile = {'25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
+    # Step 2: Create the PDFContribution object for simulation-only data
+    cpdf_simulated = phase(
+        r0_simulated, g0_simulated, cfg_simulated,
+        cif_directory, ciffile,
+        r_range, r_step,
+        qdamp, qbroad
+    )
 
-# # Re‐generate a “dummy” observed PDF (so you can overlay simulated on the same grid)
-# xrd_directory = 'data/'
-# mypowderdata   = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
-# composition    = 'O7 V2 Zr1'
+    # Step 3: Register spherical envelope for each phase and build the equation
+    phase_equation = ""
+    for ph in cpdf_simulated._generators:
+        cpdf_simulated.registerFunction(
+            sphericalCF,
+            name     = f"sphere_{ph}",
+            argnames = ["r", f"psize_{ph}"]
+        )
+        phase_equation += f"s_{ph}*{ph}*sphere_{ph} + "
+    cpdf_simulated.setEquation(phase_equation.rstrip(" + "))
 
-# qdamp   = 2.70577268e-02
-# qbroad  = 2.40376789e-06
-# qmax    = 22.0
-# myrange = (0.0, 80.0)
-# myrstep = 0.05
+    # Step 4: Inject optimized fit parameters exactly as in initial code
+    for ph, params in optimized_params.items():
+        # Set scale factor
+        getattr(cpdf_simulated, f"s_{ph}").value = params['s']
+        # Set particle size parameter
+        setattr(cpdf_simulated, f"psize_{ph}", params['psize'])
+        # Set delta2 on the phase object
+        getattr(cpdf_simulated, ph).delta2.value = params['delta2']
 
-# r0_simulated, g0_simulated, cfg_simulated = generatePDF(
-#     xrd_directory + mypowderdata,
-#     composition,
-#     qmin    = 0.0,
-#     qmax    = qmax,
-#     myrange = myrange,
-#     myrstep = myrstep
-# )
+    # Step 5: Set isotropic atomic displacement parameters (Uiso) by element
+    for ph in cpdf_simulated._generators:
+        struct = getattr(cpdf_simulated, ph).phase
+        for atom in struct.getScatterers():
+            if atom.element in default_Uiso:
+                atom.Uiso.value = default_Uiso[atom.element]
 
-# # Build the simulation‐only PDFContribution
-# cpdf_simulated = phase(
-#     r0_simulated, g0_simulated, cfg_simulated,
-#     cif_directory, ciffile,
-#     myrange, myrstep,
-#     qdamp, qbroad
-# )
+    # Step 6: Evaluate over fitting range, compute Rw, and save CSV
+    evaluate_and_plot(
+        cpdf_simulated,
+        fitting_range = fitting_range,
+        csv_filename  = output_results_path+'/'+csv_filename
+    )
 
-# # Register spherical envelope and set the phase equation
-# phase_equation = ""
-# for ph in cpdf_simulated._generators:
-#     cpdf_simulated.registerFunction(
-#         sphericalCF,
-#         name     = f"sphere_{ph}",
-#         argnames = ["r", f"psize_{ph}"]
-#     )
-#     phase_equation += f"s_{ph}*{ph}*sphere_{ph} + "
-# cpdf_simulated.setEquation(phase_equation.rstrip(" + "))
+    # Step 7: Generate bond/angle statistics and save plots
+    for phase_name in cpdf_simulated._generators:
+        phase_obj = getattr(cpdf_simulated, phase_name).phase
+        visualize_fit_summary(
+            cpdf_simulated,
+            phase_obj,
+            output_results_path + f"/{phase_name}_",
+            font_size=font_size,
+            label_font_size=label_font_size
+        )
 
-# # Inject optimized parameters
-# cpdf_simulated.s_Phase0.value      = 4.92399836e-01
-# cpdf_simulated.psize_Phase0        = 2.66658626e+02
-# cpdf_simulated.Phase0.delta2.value = 2.53696631e+00
+    return cpdf_simulated
 
 
-# #set Uiso by element
-# default_Uiso = {'Zr':5.79086780e-04, 'V':3.21503909e-03, 'O':7.21519003e-03}
+# # =============================================================================
+# # Run simulation workflow with specific parameters (using original code variables)
+# # =============================================================================
 
-# for ph in cpdf_simulated._generators:
-#     stru = getattr(cpdf_simulated, ph).phase
-#     for atom in stru.getScatterers():
-#         if atom.element in default_Uiso:
-#             atom.Uiso.value = default_Uiso[atom.element]
+# CIF files for simulation
+cif_directory = 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/'
+ciffile       = {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
 
-# # Evaluate over 1.5–27 Å, compute Rw, plot & save CSV
-# evaluate_and_plot(
-#     cpdf_simulated,
-#     fitting_range = [1.5, 27],
-#     csv_filename  = 'sim_vs_obs.csv'
-# )
+# Experimental PDF data
+xrd_directory    = 'data/'
+mypowderdata     = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
+composition      = 'O7 V2 Zr1'
 
+# Instrumental/sample parameters
+qdamp   = 2.70577268e-02
+qbroad  = 2.40376789e-06
+qmax    = 22.0
+myrange = (0.0, 80.0)
+myrstep = 0.05
+
+# Optimized parameters from prior refinement
+optimized_params = {
+    'Phase0': {
+        's':      4.92399836e-01,
+        'psize':  2.66658626e+02,
+        'delta2': 2.53696631e+00
+    }
+}
+
+# Default Uiso by element
+default_Uiso = {'Zr':5.79086780e-04, 'V':3.21503909e-03, 'O':7.21519003e-03}
+
+# Fitting and output settings
+fitting_range       = [1.5, 27]
+csv_filename        = 'sim_vs_obs.csv'
+output_results_path = 'resultsSimulations/25C_Phase0_6'
+if not os.path.isdir(output_results_path):
+    os.makedirs(output_results_path)
+
+# Execute workflow
+cpdf_simulated = simulate_pdf_workflow(
+    cif_directory,
+    ciffile,
+    xrd_directory,
+    mypowderdata,
+    composition,
+    qdamp,
+    qbroad,
+    qmax,
+    myrange,
+    myrstep,
+    optimized_params,
+    default_Uiso,
+    fitting_range,
+    csv_filename,
+    output_results_path,
+    font_size=14,
+    label_font_size=20
+)
 
 
 # # =============================================================================
