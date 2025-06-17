@@ -505,7 +505,7 @@ def finalize_results(cpdf, fit, output_results_path, myrange, myrstep):
     # Extrapolation of the fit to a full range regardless of the fitting steps
     cpdf.setCalculationRange(myrange[0], myrange[1], myrstep)
     fig0, ax0 = subplots()
-    fig, df = plotmyfit(fit, cpdf, ax=ax0)
+    fig, df = plotmyfit(cpdf, ax=ax0)
     fig0.savefig(output_results_path + '_final_extrapolated_fit.png', dpi=600)
     df.to_csv(output_results_path + '_final_extrapolated_fit.csv', index=False)
 
