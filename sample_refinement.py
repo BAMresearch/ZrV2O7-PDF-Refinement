@@ -37,6 +37,7 @@ chdir(wd)
 import matplotlib
 matplotlib.rc('figure', figsize=(5, 3.75))
 from matplotlib.pyplot import subplots
+import seaborn as sns
 
 # =============================================================================
 # Import data management packages
@@ -92,6 +93,88 @@ from scipy.spatial.distance import pdist, squareform
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
+# =============================================================================
+#                              PROJECT SETUP
+# =============================================================================
+
+# =============================== Input Definitions ===========================
+# Define project name and directories
+project_name = 'ZirconiumVanadate25Cto25C_Rec_False/'
+xrd_directory = 'data/'   # Directory containing diffraction data
+cif_directory = 'CIFs/'    # Directory containing CIF files
+fit_directory = 'fits/'    # Base directory for storing refinement results
+
+# =============================== XRD Data ====================================
+mypowderdata = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
+
+# =============================== Output Setup ================================
+time_stamp = datetime.now().strftime("%d%m%Y_%H%M%S")
+output_results_path = fit_directory + project_name + str(time_stamp) + '/'
+if not os.path.isdir(output_results_path):
+    os.makedirs(output_results_path)
+
+# =============================== Phase Setup ================================
+ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]}
+
+# ========================== Atomic Composition ===============================
+composition = 'O7 V2 Zr1'
+
+# =============================================================================
+# Global composition dictionary
+# =============================================================================
+# For each element:
+#  • symbol            : element symbol
+#  • Uiso              : initial isotropic ADP guess
+#  • polyhedron_center : True if this element is the center of a coordination polyhedron
+#  • polyhedron_vertex : True if this element acts as a vertex in any polyhedron
+#  • cutoff            : (min,max) bond-lengths (Å) to its vertex elements (only for centers)
+detailed_composition = {
+    'Zr': {
+        'symbol': 'Zr',
+        'Uiso': 0.0065,
+        'polyhedron_center': True,
+        'polyhedron_vertex': False,
+        'cutoff': (1.8, 2.2),
+    },
+    'V': {
+        'symbol': 'V',
+        'Uiso': 0.0100,
+        'polyhedron_center': True,
+        'polyhedron_vertex': False,
+        'cutoff': (1.5, 2.4),
+    },
+    'O': {
+        'symbol': 'O',
+        'Uiso': 0.0250,
+        'polyhedron_center': False,
+        'polyhedron_vertex': True,
+    },
+}
+
+# =========================== Instrumental Parameters =========================
+qdamp = 2.70577268e-02
+qbroad = 2.40376789e-06
+qmax = 22.0
+
+# ================= Atomic Displacement Parameters (ADPs) ====================
+anisotropic = False
+unified_Uiso = True
+
+# ======================= Space Group Offset ================================
+sgoffset = [0.0, 0.0, 0.0]
+
+# ======================= PDF Generation Parameters ==========================
+myrange = (0.0, 80)
+myrstep = 0.05
+
+# ================== Fitting Procedure Parameters ============================
+convergence_options = {'disp': True}
+
+
+
+
+
+
 ###############################################################################
 #                               ALL THE FUNCTIONS 
 ###############################################################################
@@ -143,9 +226,12 @@ def plotmyfit(cpdf, baseline=-4, ax=None):
     return rv, df
 
 #=============================================================================
-def visualize_fit_summary(cpdf, phase, output_plot_path, font_size=14, label_font_size=20):
+#=============================================================================
+def visualize_fit_summary(cpdf, phase, output_plot_path,
+                          font_size=14, label_font_size=20):
     """
-    Visualize and summarize the fit results, including PDF data, bond lengths, and bond angles.
+    Visualize and summarize the fit results, including PDF data,
+    bond lengths, and bond angles.
 
     Parameters:
     - fit: FitRecipe object (not used for evaluation here).
@@ -158,190 +244,161 @@ def visualize_fit_summary(cpdf, phase, output_plot_path, font_size=14, label_fon
     Returns:
     - None. Saves summary plots (PDF fit, bond‐length histograms, angle histograms).
     """
-    import seaborn as sns
+
     import matplotlib.pyplot as plt
 
     def find_angle_triplets_full(bond_vectors):
         """
-        Identify and calculate angle triplets (O-Zr-O, O-V-O, Zr-O-V, V-O-V).
+        Identify and calculate all center‐vertex‐vertex and vertex‐center‐center angles
+        based entirely on detailed_composition.
         """
         angle_triplets = []
         unique_triplets = set()
-        bonds_by_central = {}
 
-        # Group Zr-O and V-O bonds by central atom
-        for bond_type in ['Zr-O', 'V-O']:
-            for bond in bond_vectors[bond_type]:
-                central = bond['central_atom']['label']
-                bonds_by_central.setdefault(central, []).append(bond)
+        # dynamically pull centers & vertices
+        centers  = [el for el,info in detailed_composition.items()
+                    if info.get('polyhedron_center', False)]
+        vertices = [el for el,info in detailed_composition.items()
+                    if info.get('polyhedron_vertex', False)]
 
-        # Detect O-Zr-O and O-V-O
-        for central, bonds in bonds_by_central.items():
-            if len(bonds) > 1:
-                for i in range(len(bonds)):
-                    for j in range(i + 1, len(bonds)):
-                        b1 = bonds[i]
-                        b2 = bonds[j]
-                        atom1 = (b1['atom2']['label']
-                                 if b1['atom1']['label'] == central
-                                 else b1['atom1']['label'])
-                        atom2 = (b2['atom2']['label']
-                                 if b2['atom1']['label'] == central
-                                 else b2['atom1']['label'])
-                        if atom1 == atom2 or frozenset([central, atom1, atom2]) in unique_triplets:
+        # --- angles at each center: vertex-center-vertex ---
+        for c in centers:
+            # collect all bonds for this center
+            bonds = []
+            for v in vertices:
+                bonds.extend(bond_vectors.get(f"{c}-{v}", []))
+            # group bonds by central_atom index
+            groups = {}
+            for b in bonds:
+                idx = b['central_atom']['index']
+                groups.setdefault(idx, []).append(b)
+            # for each central atom, make all unique angle pairs
+            for idx, blist in groups.items():
+                if len(blist) < 2:
+                    continue
+                for i in range(len(blist)):
+                    for j in range(i+1, len(blist)):
+                        b1, b2 = blist[i], blist[j]
+                        lbl1 = b1['atom2']['label']
+                        lbl2 = b2['atom2']['label']
+                        center_lbl = b1['central_atom']['label']
+                        key = tuple(sorted([center_lbl, lbl1, lbl2]))
+                        if key in unique_triplets:
                             continue
-
-                        vec1 = b1['vector']
-                        vec2 = b2['vector']
-                        angle = calculate_angle(vec1, vec2)
-                        category = 'O-Zr-O' if central.startswith('ZR') else 'O-V-O'
-
+                        angle = calculate_angle(b1['vector'], b2['vector'])
+                        category = (
+                            f"{b1['atom2']['symbol']}-"
+                            f"{b1['central_atom']['symbol']}-"
+                            f"{b2['atom2']['symbol']}"
+                        )
                         angle_triplets.append({
-                            'central_label': central,
-                            'atom1_label': atom1,
-                            'atom2_label': atom2,
-                            'angle': angle,
-                            'angle name': (atom1, central, atom2),
-                            'angle category': category
+                            'central_label':   center_lbl,
+                            'atom1_label':     lbl1,
+                            'atom2_label':     lbl2,
+                            'angle':           angle,
+                            'angle name':      (lbl1, center_lbl, lbl2),
+                            'angle category':  category
                         })
-                        unique_triplets.add(frozenset([central, atom1, atom2]))
+                        unique_triplets.add(key)
 
-        # Detect Zr-O-V and V-O-V
-        oxygen_dict = {}
-        for bond_type in ['Zr-O', 'V-O']:
-            for bond in bond_vectors[bond_type]:
-                oxy = (bond['atom2']['label']
-                       if bond['atom1']['label'] == bond['central_atom']['label']
-                       else bond['atom1']['label'])
-                oxygen_dict.setdefault(oxy, []).append(bond)
-
-        for oxy, bonds in oxygen_dict.items():
-            if len(bonds) > 1:
-                for i in range(len(bonds)):
-                    for j in range(i + 1, len(bonds)):
-                        b1 = bonds[i]
-                        b2 = bonds[j]
-                        cent1 = b1['central_atom']['label']
-                        cent2 = b2['central_atom']['label']
-
-                        if cent1.startswith('ZR') and cent2.startswith('V'):
-                            category = 'Zr-O-V'
-                        elif cent1.startswith('V') and cent2.startswith('V'):
-                            category = 'V-O-V'
-                        else:
-                            continue
-
-                        vec1 = b1['vector']
-                        vec2 = b2['vector']
-                        angle = calculate_angle(vec1, vec2)
-
-                        triplet_sorted = tuple(sorted([cent1, oxy, cent2]))
-                        if frozenset(triplet_sorted) not in unique_triplets:
-                            angle_triplets.append({
-                                'central_label': oxy,
-                                'atom1_label': cent1,
-                                'atom2_label': cent2,
-                                'angle': angle,
-                                'angle name': (cent1, oxy, cent2),
-                                'angle category': category
-                            })
-                            unique_triplets.add(frozenset([cent1, oxy, cent2]))
+        # --- angles at each vertex: center-vertex-center ---
+        vdict = {}
+        for c in centers:
+            for v in vertices:
+                for b in bond_vectors.get(f"{c}-{v}", []):
+                    vidx = b['atom2']['index']
+                    vdict.setdefault(vidx, []).append(b)
+        for vidx, blist in vdict.items():
+            if len(blist) < 2:
+                continue
+            for i in range(len(blist)):
+                for j in range(i+1, len(blist)):
+                    b1, b2 = blist[i], blist[j]
+                    cent1 = b1['central_atom']['label']
+                    cent2 = b2['central_atom']['label']
+                    if cent1 == cent2:
+                        continue
+                    vert_lbl = b1['atom2']['label']
+                    key = tuple(sorted([vert_lbl, cent1, cent2]))
+                    if key in unique_triplets:
+                        continue
+                    angle = calculate_angle(b1['vector'], b2['vector'])
+                    category = (
+                        f"{b1['central_atom']['symbol']}-"
+                        f"{b1['atom2']['symbol']}-"
+                        f"{b2['central_atom']['symbol']}"
+                    )
+                    angle_triplets.append({
+                        'central_label':   vert_lbl,
+                        'atom1_label':     cent1,
+                        'atom2_label':     cent2,
+                        'angle':           angle,
+                        'angle name':      (cent1, vert_lbl, cent2),
+                        'angle category':  category
+                    })
+                    unique_triplets.add(key)
 
         return angle_triplets
 
-    # 1) Calculate bond vectors for this phase
-    bond_vectors = get_polyhedral_bond_vectors(
-        phase, zr_o_cutoff=(1.8, 2.8), v_o_cutoff=(1.5, 2.4), max_workers=4
-    )
+    # 1) Calculate bond vectors (uses your global detailed_composition internally)
+    bond_vectors   = get_polyhedral_bond_vectors(phase)
     angle_triplets = find_angle_triplets_full(bond_vectors)
 
     # 2) Set plot fonts
-    plt.rcParams['font.size'] = font_size
+    plt.rcParams['font.size']   = font_size
     plt.rcParams['font.family'] = 'Arial'
 
     # 3) Create a 1×3 panel figure
     fig, axs = plt.subplots(1, 3, figsize=(21, 7))
 
     # ---- Panel 1: PDF data vs. fit ----
-    r = cpdf.profile.x
-    g_obs = cpdf.profile.y
+    r      = cpdf.profile.x
+    g_obs  = cpdf.profile.y
     g_calc = cpdf.evaluate()
     g_diff = g_obs - g_calc
 
-    axs[0].plot(
-        r, g_obs, 'o', label='G_obs',
-        markeredgecolor='blue', markerfacecolor='none'
-    )
-    axs[0].plot(r, g_calc, color='red', label='G_calc')
-    axs[0].plot(r, g_diff - 4, color='green', label='G_diff')
-    axs[0].axhline(y=-4, color='black', linestyle=':')
-    axs[0].set_xlabel('r (Å)', fontsize=label_font_size)
-    axs[0].set_ylabel('G (Å$^{-2}$)', fontsize=label_font_size)
-    axs[0].legend(fontsize=font_size)
+    axs[0].plot(r, g_obs,  'o', label='G_obs',
+                markeredgecolor='blue', markerfacecolor='none')
+    axs[0].plot(r, g_calc,      label='G_calc')
+    axs[0].plot(r, g_diff-4,    label='G_diff')
+    axs[0].axhline(y=-4, linestyle=':', color='black')
+    axs[0].set_xlabel('r (Å)',           fontsize=label_font_size)
+    axs[0].set_ylabel('G (Å$^{-2}$)',    fontsize=label_font_size)
     axs[0].set_title('PDF Data and Fit', fontsize=label_font_size)
+    axs[0].legend(fontsize=font_size)
 
     # ---- Panel 2: Bond‐length histograms ----
-    zr_o_lengths = [b['length'] for b in bond_vectors['Zr-O']]
-    v_o_lengths = [b['length'] for b in bond_vectors['V-O']]
-
-    import numpy as _np  # local alias to avoid shadowing
-    import seaborn as _sns
-
-    _sns.histplot(
-        zr_o_lengths, bins=50, kde=True, ax=axs[1],
-        color='blue', label='Zr-O Bonds'
-    )
-    _sns.histplot(
-        v_o_lengths, bins=50, kde=True, ax=axs[1],
-        color='red', label='V-O Bonds'
-    )
-
-    axs[1].set_xlabel('Bond Length (Å)', fontsize=label_font_size)
-    axs[1].set_ylabel('Count', fontsize=label_font_size)
-    axs[1].set_title('Zr-O and V-O Bond Length Distribution', fontsize=label_font_size)
+    for bond_type, blist in bond_vectors.items():
+        left, right = bond_type.split('-')
+        # skip pure vertex-vertex bonds
+        if left in [el for el,info in detailed_composition.items() if info.get('polyhedron_vertex')] \
+           and right in [el for el,info in detailed_composition.items() if info.get('polyhedron_vertex')]:
+            continue
+        lengths = [b['length'] for b in blist]
+        sns.histplot(lengths, bins=50, kde=True, ax=axs[1], label=bond_type)
+    axs[1].set_xlabel('Bond Length (Å)',           fontsize=label_font_size)
+    axs[1].set_ylabel('Count',                     fontsize=label_font_size)
+    axs[1].set_title('Bond Length Distributions',  fontsize=label_font_size)
     axs[1].legend(fontsize=font_size)
 
     # ---- Panel 3: Bond‐angle histograms ----
-    o_zr_o_angles = [
-        a['angle'] for a in angle_triplets if a['angle category'] == 'O-Zr-O'
-    ]
-    o_v_o_angles = [
-        a['angle'] for a in angle_triplets if a['angle category'] == 'O-V-O'
-    ]
-    zr_o_v_angles = [
-        a['angle'] for a in angle_triplets if a['angle category'] == 'Zr-O-V'
-    ]
-    v_o_v_angles = [
-        a['angle'] for a in angle_triplets if a['angle category'] == 'V-O-V'
-    ]
-
-    _sns.histplot(
-        o_zr_o_angles, bins=_np.linspace(70, 180, 50), kde=True,
-        ax=axs[2], color='blue', label='O-Zr-O Angles'
-    )
-    _sns.histplot(
-        o_v_o_angles, bins=_np.linspace(70, 180, 50), kde=True,
-        ax=axs[2], color='red', label='O-V-O Angles'
-    )
-    _sns.histplot(
-        zr_o_v_angles, bins=_np.linspace(70, 180, 50), kde=True,
-        ax=axs[2], color='green', label='Zr-O-V Angles'
-    )
-    _sns.histplot(
-        v_o_v_angles, bins=_np.linspace(70, 180, 50), kde=True,
-        ax=axs[2], color='black', label='V-O-V Angles'
-    )
-
-    axs[2].set_xlabel('Angle (°)', fontsize=label_font_size)
-    axs[2].set_ylabel('Count', fontsize=label_font_size)
-    axs[2].set_xlim(50, 180)
-    axs[2].set_title('Bond Angle Distributions', fontsize=label_font_size)
+    categories = sorted({a['angle category'] for a in angle_triplets})
+    for cat in categories:
+        angles = [a['angle'] for a in angle_triplets if a['angle category']==cat]
+        sns.histplot(angles,
+                     bins=np.linspace(0, 180, 50), kde=True,
+                     ax=axs[2], label=cat)
+    axs[2].set_xlabel('Angle (°)',                  fontsize=label_font_size)
+    axs[2].set_ylabel('Count',                      fontsize=label_font_size)
+    axs[2].set_xlim(0, 180)
+    axs[2].set_title('Bond Angle Distributions',    fontsize=label_font_size)
     axs[2].legend(fontsize=font_size)
 
     plt.tight_layout()
     plt.savefig(output_plot_path + 'summary_plot.pdf', dpi=600)
     plt.show()
-#----------------------------------------------------------------------------
+#----------------------------------------------------------------------------    
+
 def evaluate_and_plot(cpdf, fitting_range, csv_filename):
     """
     Evaluate model vs. data over a limited r-range, compute Rw,
@@ -608,6 +665,7 @@ def contribution(name, qmin, qmax, ciffile, periodic, super_cell):
     - pdfgenerator (diffpy.srfit.pdf.pdfgenerator.PDFGenerator): The configured
       PDFGenerator object with the specified structure and Q-range.
     """
+    global ncpu, pool
     pdfgenerator = PDFGenerator(str(name))
     pdfgenerator.setQmax(qmax)
     pdfgenerator.setQmin(qmin)
@@ -641,6 +699,7 @@ def DebyeContribution(name, qmin, qmax, ciffile, periodic, super_cell):
     - pdfgenerator (DebyePDFGenerator): An object ready to be added
       to a PDFContribution or FitRecipe, just like the original function.
     """
+    global ncpu, pool
     pdfgenerator = DebyePDFGenerator(str(name))
     pdfgenerator.setQmax(qmax)
     pdfgenerator.setQmin(qmin)
@@ -675,6 +734,8 @@ def phase(r0, g0, cfg, cif_directory, ciffile, fitRange, dx, qdamp, qbroad, name
     - cpdf: PDFContribution object, representing the combined phases with associated constraints
       and experimental data.
     """
+    global ncpu, pool
+    
     cpdf = PDFContribution(name)
     cpdf.setScatteringType('X')
     cpdf.setQmax(cfg.qmax)
@@ -798,118 +859,130 @@ def calculate_dihedral(v1, v2, v3):
 
 
 #----------------------------------------------------------------------------
-def get_polyhedral_bond_vectors(phase, zr_o_cutoff=(1.9, 2.2), v_o_cutoff=(1.5, 2.3), max_workers=4):
+def get_polyhedral_bond_vectors(phase, max_workers=4):
     """
-    Compute bond vectors for Zr-O, V-O, and O-O bonds in a given phase structure,
-    considering specified cutoff ranges for Zr-O and V-O bonds.
-
-    Parameters:
-    - phase: Object representing the crystal structure of the phase being analyzed.
-    - zr_o_cutoff: Tuple of two floats, minimum and maximum distance for Zr-O bonds.
-    - v_o_cutoff: Tuple of two floats, minimum and maximum distance for V-O bonds.
-    - max_workers: Integer, the maximum number of threads for parallel processing.
+    Compute bond vectors for every center–vertex pair (e.g. Zr–O, V–O, …)
+    and all vertex–vertex bonds (e.g. O–O, or any other vertex–vertex)
+    driven entirely by the global detailed_composition dict.
 
     Returns:
-    - bond_vectors: Dictionary containing bond information, structured as:
-        {
-          'Zr-O': List of dictionaries, each with details of Zr-O bonds,
-          'V-O': List of dictionaries, each with details of V-O bonds,
-          'O-O': List of dictionaries, each with details of O-O bonds.
-        }
+      bond_vectors: dict with keys "<Center>-<Vertex>" and "<Vertex1>-<Vertex2>",
+      each mapping to a list of bond‐info dicts:
+        • For center–vertex bonds:
+          {
+            'central_atom':   {symbol,index,label,position_frac},
+            'atom1':          {symbol,index,label,position_frac},  # same as central_atom
+            'atom2':          {symbol,index,label,position_frac},  # the vertex
+            'vector':         cartesian bond vector,
+            'length':         cartesian bond length,
+            'relative_length':fractional‐coord bond length
+          }
+        • For vertex–vertex bonds:
+          {
+            'central_atom':   {symbol,index,label,position_frac},  # the polyhedron center
+            'atom1':          {symbol,index,label,position_frac},  # first vertex
+            'atom2':          {symbol,index,label,position_frac},  # second vertex
+            'vector':         cartesian edge vector,
+            'length':         cartesian edge length,
+            'relative_length':fractional‐coord edge length
+          }
     """
-    bond_vectors = {'Zr-O': [], 'V-O': [], 'O-O': []}
+    from itertools import combinations_with_replacement, combinations
 
-    lattice = phase.lattice
-    a, b, c = lattice.a.value, lattice.b.value, lattice.c.value
-    alpha, beta, gamma = lattice.alpha.value, lattice.beta.value, lattice.gamma.value
+    # 1) Decide which elements are centers vs. vertices
+    centers  = [el for el,info in detailed_composition.items() if info.get('polyhedron_center', False)]
+    vertices = [el for el,info in detailed_composition.items() if info.get('polyhedron_vertex', False)]
 
-    lattice_mat = lattice_vectors(a, b, c, alpha, beta, gamma)
+    # 2) Initialize empty lists for each center–vertex and each vertex–vertex type
+    bond_vectors = {}
+    for c in centers:
+        for v in vertices:
+            bond_vectors[f"{c}-{v}"] = []
+    for v1, v2 in combinations_with_replacement(vertices, 2):
+        bond_vectors[f"{v1}-{v2}"] = []
 
+    # 3) Build lattice matrix and position maps
+    lat = phase.lattice
+    a, b, c = lat.a.value, lat.b.value, lat.c.value
+    lattice_mat = lattice_vectors(a, b, c,
+                                  lat.alpha.value,
+                                  lat.beta.value,
+                                  lat.gamma.value)
     scatterers = phase.getScatterers()
-    positions = {i: np.array([atom.x.value, atom.y.value, atom.z.value]) for i, atom in enumerate(scatterers)}
-    elements = {i: atom.element for i, atom in enumerate(scatterers)}
-    labels = {i: atom.name.upper() for i, atom in enumerate(scatterers)}
-    coordination_groups = {}
+    pos_frac = {i: np.array([atm.x.value, atm.y.value, atm.z.value])
+                for i, atm in enumerate(scatterers)}
+    pos_cart = {i: lattice_mat.dot(frac) for i, frac in pos_frac.items()}
+    elements = {i: atm.element for i, atm in enumerate(scatterers)}
+    labels   = {i: atm.name.upper() for i, atm in enumerate(scatterers)}
 
-    with tqdm(total=len(scatterers), desc="Calculating Bond Vectors") as pbar:
-        for i, atom in enumerate(scatterers):
-            pbar.update(1)
-            if elements[i] in ['Zr', 'V']:
-                central_atom = elements[i]
-                coordination_groups[i] = []
+    # 4) Gather which vertices coordinate each center
+    coord = {i: [] for i, el in elements.items() if el in centers}
 
-                central_cart = lattice_mat @ positions[i]
+    # 5) Center→vertex bonds using per‐center cutoffs
+    for i, el in elements.items():
+        if el in centers:
+            cpos   = pos_cart[i]
+            cutoff = detailed_composition[el]['cutoff']
+            for j, elj in elements.items():
+                if elj in vertices and i != j:
+                    vec    = pos_cart[j] - cpos
+                    length = np.linalg.norm(vec)
+                    if cutoff[0] <= length <= cutoff[1]:
+                        rel_len = np.linalg.norm(pos_frac[j] - pos_frac[i])
+                        info = {
+                            'central_atom': {
+                                'symbol': el, 'index': i, 'label': labels[i],
+                                'position': pos_frac[i]
+                            },
+                            'atom1': {
+                                'symbol': el, 'index': i, 'label': labels[i],
+                                'position': pos_frac[i]
+                            },
+                            'atom2': {
+                                'symbol': elj,'index': j, 'label': labels[j],
+                                'position': pos_frac[j]
+                            },
+                            'vector':         vec,
+                            'length':         length,
+                            'relative_length':rel_len
+                        }
+                        bond_vectors[f"{el}-{elj}"].append(info)
+                        coord[i].append(j)
 
-                for j, neighbor in enumerate(scatterers):
-                    if elements[j] == 'O' and i != j:
-                        neighbor_cart = lattice_mat @ positions[j]
-                        vector_cart = neighbor_cart - central_cart
-                        bond_length = np.linalg.norm(vector_cart)
-
-                        if (central_atom == 'Zr' and zr_o_cutoff[0] <= bond_length <= zr_o_cutoff[1]) or \
-                           (central_atom == 'V' and v_o_cutoff[0] <= bond_length <= v_o_cutoff[1]):
-                            bond_info = {
-                                'central_atom': {
-                                    'symbol': central_atom,
-                                    'index': i,
-                                    'label': labels[i],
-                                    'position': positions[i]
-                                },
-                                'atom1': {
-                                    'symbol': central_atom,
-                                    'index': i,
-                                    'label': labels[i],
-                                    'position': positions[i]
-                                },
-                                'atom2': {
-                                    'symbol': 'O',
-                                    'index': j,
-                                    'label': labels[j],
-                                    'position': positions[j]
-                                },
-                                'vector': vector_cart,
-                                'length': bond_length,
-                                'relative_length': np.linalg.norm(positions[j] - positions[i])
-                            }
-                            bond_type = 'Zr-O' if central_atom == 'Zr' else 'V-O'
-                            bond_vectors[bond_type].append(bond_info)
-
-                            coordination_groups[i].append(j)
-
-    for central_index, o_indices in coordination_groups.items():
-        for i in range(len(o_indices)):
-            for j in range(i + 1, len(o_indices)):
-                pos_i_cart = lattice_mat @ positions[o_indices[i]]
-                pos_j_cart = lattice_mat @ positions[o_indices[j]]
-                vector_cart = pos_j_cart - pos_i_cart
-                length = np.linalg.norm(vector_cart)
-
-                bond_info = {
-                    'central_atom': {
-                        'symbol': elements[central_index],
-                        'index': central_index,
-                        'label': labels[central_index],
-                        'position': positions[central_index]
-                    },
-                    'atom1': {
-                        'symbol': 'O',
-                        'index': o_indices[i],
-                        'label': labels[o_indices[i]],
-                        'position': positions[o_indices[i]]
-                    },
-                    'atom2': {
-                        'symbol': 'O',
-                        'index': o_indices[j],
-                        'label': labels[o_indices[j]],
-                        'position': positions[o_indices[j]]
-                    },
-                    'vector': vector_cart,
-                    'length': length,
-                    'relative_length': np.linalg.norm(positions[o_indices[j]] - positions[o_indices[i]])
-                }
-                bond_vectors['O-O'].append(bond_info)
+    # 6) Vertex–vertex bonds within each polyhedron
+    for cen_idx, verts in coord.items():
+        cinfo = {
+            'symbol':   elements[cen_idx],
+            'index':    cen_idx,
+            'label':    labels[cen_idx],
+            'position': pos_frac[cen_idx]
+        }
+        for u, v in combinations(verts, 2):
+            vec     = pos_cart[v] - pos_cart[u]
+            length  = np.linalg.norm(vec)
+            rel_len = np.linalg.norm(pos_frac[v] - pos_frac[u])
+            el_u, el_v = elements[u], elements[v]
+            key = f"{min(el_u,el_v)}-{max(el_u,el_v)}"
+            edge_info = {
+                'central_atom':   cinfo,
+                'atom1': {
+                    'symbol': el_u, 'index': u, 'label': labels[u],
+                    'position': pos_frac[u]
+                },
+                'atom2': {
+                    'symbol': el_v, 'index': v, 'label': labels[v],
+                    'position': pos_frac[v]
+                },
+                'vector':         vec,
+                'length':         length,
+                'relative_length':rel_len
+            }
+            bond_vectors[key].append(edge_info)
 
     return bond_vectors
+
+
+
 
 
 #----------------------------------------------------------------------------
@@ -1102,30 +1175,38 @@ def find_dihedral_quadruplets(bond_pairs, angle_threshold=2.0):
 #----------------------------------------------------------------------------
 def detect_edge_bonds(bond_vectors, threshold=0.005):
     """
-    Identify V-O bonds where at least one atom is very close to the unit cell boundary.
+    Identify any center–vertex bonds where at least one atom lies within `threshold`
+    of a periodic unit‐cell boundary (0 or 1 in fractional coords).
 
     Parameters:
-    - bond_vectors: Dictionary containing bond data for 'Zr-O', 'V-O', and 'O-O'.
-    - threshold: Float, distance from the unit cell edge (default: 0.005).
+    - bond_vectors: dict of lists returned by get_polyhedral_bond_vectors(),
+      with keys like "Zr-O", "V-O", etc., and “vertex-vertex”.
+    - threshold: float, distance from the 0/1 boundary (default: 0.005).
 
     Returns:
-    - edge_bonds: List of V-O bond dictionaries where at least one atom is near the edge.
+    - edge_bonds: dict mapping each center–vertex bond type to the sub‐list of bonds
+      that lie near a cell edge.
     """
-    edge_bonds = []
+    def _near_edge(pos):
+        # pos is a length-3 array of fractional coords
+        return any(c < threshold or c > 1.0 - threshold for c in pos)
 
-    if 'V-O' in bond_vectors:
-        for bond in bond_vectors['V-O']:
-            pos1 = bond['atom1']['position']
-            pos2 = bond['atom2']['position']
+    edge_bonds = {}
+    for bond_type, blist in bond_vectors.items():
+        # skip polygon edges if you only care about center–vertex
+        if bond_type == 'vertex-vertex':
+            continue
+        edge_bonds[bond_type] = []
+        for bond in blist:
+            cpos = bond['center' if 'center' in bond else 'atom1']['position']
+            vpos = bond['vertex' if 'vertex' in bond else 'atom2']['position']
+            if _near_edge(cpos) or _near_edge(vpos):
+                edge_bonds[bond_type].append(bond)
 
-            if (
-                any(coord < threshold or coord > (1 - threshold) for coord in pos1) or
-                any(coord < threshold or coord > (1 - threshold) for coord in pos2)
-            ):
-                edge_bonds.append(bond)
-
-    print(f"[INFO] Detected {len(edge_bonds)} V-O bonds near the unit cell edge.")
+    total = sum(len(v) for v in edge_bonds.values())
+    print(f"[INFO] Detected {total} center–vertex bonds near any cell edge.")
     return edge_bonds
+
 
 
 #----------------------------------------------------------------------------
@@ -1288,7 +1369,7 @@ def refinement_RigidBody(fit, cpdf, constrain_bonds, constrain_angles, constrain
         else:
             bond_vectors = get_polyhedral_bond_vectors(getattr(cpdf, phase).phase)
 
-        # Detect edge V-O bonds
+        # Detect edge bonds near cell boundaries
         edge_bonds = detect_edge_bonds(bond_vectors, threshold=0.005)
 
         # Find bond pairs, angles, and dihedral triplets
@@ -1307,44 +1388,59 @@ def refinement_RigidBody(fit, cpdf, constrain_bonds, constrain_angles, constrain
         if constrain_bonds[0]:
             print("\n[INFO] Processing bond constraints...")
 
-            # Step 1: Identify shared oxygen atoms for V-O-V bonds
-            shared_oxygen_dict = {}
+            # Step 1: Identify shared vertex atoms for center-vertex-center bonds
+            shared_vertex_dict = {}
+            centers  = [el for el,info in detailed_composition.items() if info['polyhedron_center']]
+            vertices = [el for el,info in detailed_composition.items() if info['polyhedron_vertex']]
 
             for var_name, data in constrain_dict_bonds.items():
-                atom1, atom2 = data['atoms']
+                atom1_label, atom2_label = data['atoms']
+                # figure out which label is center vs. vertex
+                center_lbl = None
+                vertex_lbl = None
+                if any(atom1_label.startswith(c) for c in centers) and any(atom2_label.startswith(v) for v in vertices):
+                    center_lbl, vertex_lbl = atom1_label, atom2_label
+                elif any(atom2_label.startswith(c) for c in centers) and any(atom1_label.startswith(v) for v in vertices):
+                    center_lbl, vertex_lbl = atom2_label, atom1_label
+                if vertex_lbl:
+                    shared_vertex_dict.setdefault(vertex_lbl, {'bond_vars': [], 'expressions': []})
+                    shared_vertex_dict[vertex_lbl]['bond_vars'].append(var_name)
+                    shared_vertex_dict[vertex_lbl]['expressions'].append(data['expression'])
 
-                if atom1.startswith('V') and atom2.startswith('O'):
-                    oxygen_label = atom2
-                    shared_oxygen_dict.setdefault(oxygen_label, {'bond_vars': [], 'expressions': []})
-                    shared_oxygen_dict[oxygen_label]['bond_vars'].append(var_name)
-                    shared_oxygen_dict[oxygen_label]['expressions'].append(data['expression'])
+            # keep only those vertices bonded to two centers
+            shared_vertex_dict = {
+                v:info for v,info in shared_vertex_dict.items()
+                if len(info['bond_vars']) == 2
+            }
 
-            shared_oxygen_dict = {k: v for k, v in shared_oxygen_dict.items() if len(v["bond_vars"]) == 2}
-
-            # Step 2: Identify V-O bonds at the unit cell edge
+            # Step 2: Identify center-vertex bonds at the unit cell edge
             edge_bond_dict = {}
-            for bond in edge_bonds:
-                atom1_label = bond["atom1"]["label"]
-                atom2_label = bond["atom2"]["label"]
-                if atom2_label not in edge_bond_dict:
-                    edge_bond_dict[atom2_label] = []
-                bond_var_name = f"bond_length_{atom1_label}_{atom2_label}_{phase_key}"
-                edge_bond_dict[atom2_label].append(bond_var_name)
+            for btype, blist in edge_bonds.items():
+                for bond in blist:
+                    atom1_label = bond["atom1"]["label"]
+                    atom2_label = bond["atom2"]["label"]
+                    bond_var_name = f"bond_length_{atom1_label}_{atom2_label}_{phase_key}"
+                    edge_bond_dict.setdefault(atom2_label, []).append(bond_var_name)
 
-            print(f"[INFO] Identified {len(edge_bond_dict)} V-O edge bonds.")
+            print(f"[INFO] Identified {sum(len(lst) for lst in edge_bond_dict.values())} edge bonds.")
 
-            # Step 3: Identify problematic bonds (length < 1.6 Å or > 1.9 Å)
+            # Step 3: Identify problematic bonds (outside cutoff ranges)
             bond_vectors_current = get_polyhedral_bond_vectors(getattr(cpdf, phase).phase)
             problematic_bonds_dict = {}
-            for bond_type in ['V-O']:
-                for bond in bond_vectors_current[bond_type]:
-                    if bond['length'] < 1.6 or bond['length'] > 1.9:
+            for bond_type, blist in bond_vectors_current.items():
+                if bond_type == 'O-O':
+                    continue
+                center_sym = bond_type.split('-')[0]
+                cutoff = detailed_composition[center_sym]['cutoff']
+                for bond in blist:
+                    length = bond['length']
+                    if length < cutoff[0] or length > cutoff[1]:
                         atom1_label = bond["atom1"]["label"]
                         atom2_label = bond["atom2"]["label"]
                         bond_key = f"bond_length_{atom1_label}_{atom2_label}_{phase_key}"
                         problematic_bonds_dict[bond_key] = bond
 
-            print(f"[INFO] Detected {len(problematic_bonds_dict)} problematic V-O bonds (length <1.6 or >1.9 Å).")
+            print(f"[INFO] Detected {len(problematic_bonds_dict)} problematic bonds (outside cutoff).")
 
             # Step 4: Apply constraints
             for var_name, data in constrain_dict_bonds.items():
@@ -1352,29 +1448,25 @@ def refinement_RigidBody(fit, cpdf, constrain_bonds, constrain_angles, constrain
                     fit.newVar(var_name, tags=['bond_length'])
                     fit.constrain(var_name, data['expression'])
 
-                    if any(var_name in info["bond_vars"] for info in shared_oxygen_dict.values()):
-                        strict_sigma = 1e-7
-                        lb = 0.95 * data['relative_length']
-                        ub = 1.05 * data['relative_length']
-                        print(f"[V-O-V BOND] {var_name}: lb={lb:.6f}, ub={ub:.6f}, sigma={strict_sigma}")
+                    # decide sigma & bounds based on category
+                    if any(var_name in info['bond_vars'] for info in shared_vertex_dict.values()):
+                        category = "SHARED-VERTEX BOND"
+                        sigma = 1e-7
                     elif any(var_name in bond_list for bond_list in edge_bond_dict.values()):
-                        strict_sigma = 1e-7
-                        lb = 0.95 * data['relative_length']
-                        ub = 1.05 * data['relative_length']
-                        print(f"[EDGE BOND] {var_name}: lb={lb:.6f}, ub={ub:.6f}, sigma={strict_sigma}")
+                        category = "EDGE BOND"
+                        sigma = 1e-7
                     elif var_name in problematic_bonds_dict:
-                        initial_rel_length = data['relative_length']
-                        strict_sigma = 1e-7
-                        lb = 0.95 * initial_rel_length
-                        ub = 1.05 * initial_rel_length
-                        print(f"[PROBLEMATIC BOND] {var_name}: lb={lb:.6f}, ub={ub:.6f}, sigma={strict_sigma}")
+                        category = "PROBLEMATIC BOND"
+                        sigma = 1e-7
                     else:
-                        strict_sigma = constrain_bonds[1]
-                        lb = 0.95 * data['relative_length']
-                        ub = 1.05 * data['relative_length']
-                        print(f"[NORMAL BOND] {var_name}: lb={lb:.6f}, ub={ub:.6f}, sigma={strict_sigma}")
+                        category = "NORMAL BOND"
+                        sigma = constrain_bonds[1]
 
-                    fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=strict_sigma)
+                    rel_len = data['relative_length']
+                    lb, ub = 0.95 * rel_len, 1.05 * rel_len
+                    print(f"[{category}] {var_name}: lb={lb:.6f}, ub={ub:.6f}, sigma={sigma}")
+
+                    fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=sigma)
 
                 except Exception as e:
                     print(f"[WARNING] Skipped {var_name} due to error: {e}")
@@ -1419,7 +1511,7 @@ def refinement_RigidBody(fit, cpdf, constrain_bonds, constrain_angles, constrain
         # Cleanup: Remove variables that are None
         # --------------------------------------------------------------------
         for name in dir(fit):
-            if name.startswith(('bond_', 'angle_', 'dihedral_')):
+            if name.startswith(('bond_length_', 'angle_', 'dihedral_')):
                 try:
                     var = getattr(fit, name)
                     if var.value is None:
@@ -1430,6 +1522,7 @@ def refinement_RigidBody(fit, cpdf, constrain_bonds, constrain_angles, constrain
                     continue
 
     return fit
+
 
 
 # =============================================================================
@@ -1498,7 +1591,7 @@ def fit_me(i, fitting_range, myrstep, fitting_order, fit, cpdf, residualEquation
             print(f'Freeing parameter: {step}')
             fit.free(step)
             optimizer = 'L-BFGS-B'
-            minimize(fit.scalarResidual, fit.values, method=optimizer, options=convergence_options)
+            #minimize(fit.scalarResidual, fit.values, method=optimizer, options=convergence_options)
         except Exception:
             continue
 
@@ -1567,17 +1660,14 @@ def refinement_basic(cpdf, anisotropic, unified_Uiso, sgoffset=[0, 0, 0]):
             getattr(cpdf, phase).stru.anisotropy = True
             print('Adding anisotropic displacement parameters.')
             for par in sgpar.adppars:
-                atom_label = par.par.obj.label
-                atom_symbol = par.par.obj.element
-                if atom_symbol == 'V':
-                    value = 0.01
-                if atom_symbol == 'O':
-                    value = 0.025
-                if atom_symbol == 'Zr':
-                    value = 0.0065
-                name = par.name + '_' + atom_label + '_' + str(phase)
-                tags = ['adp', 'adp_' + atom_label, 'adp_' + atom_symbol + '_' + str(phase), 'adp_' + str(phase), 'adp_' + atom_symbol, str(phase)]
-                fit.addVar(par, value=value, name=name, tags=tags)
+                atom = par.par.obj
+                atom_label = atom.label
+                atom_symbol = atom.element
+                # take Uiso initial from detailed_composition
+                u0 = detailed_composition.get(atom_symbol, {}).get('Uiso', 0.01)
+                name = f"{par.name}_{atom_label}_{phase}"
+                tags = ['adp', f"adp_{atom_label}", f"adp_{atom_symbol}_{phase}", f"adp_{phase}", f"adp_{atom_symbol}", str(phase)]
+                fit.addVar(par, value=u0, name=name, tags=tags)
                 fit.restrain(par, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
         else:
             mapped_adppars = map_sgpar_params(sgpar, 'adppars')
@@ -1587,40 +1677,32 @@ def refinement_basic(cpdf, anisotropic, unified_Uiso, sgoffset=[0, 0, 0]):
                     atom_symbol = par.par.obj.element
                     parameter_name = par.name
                     atom_label = mapped_adppars[parameter_name][1]
-                    if atom_label not in added_adps:
-                        added_adps.add(atom_label)
+                    added_adps.add(atom_label)
                 except Exception:
                     pass
             if unified_Uiso:
                 print('Adding isotropic displacement parameters as unified values.')
                 getattr(cpdf, phase).stru.anisotropy = False
-                Uiso_O = fit.newVar('Uiso_O_' + str(phase), value=0.025, tags=['adp', str(phase), 'adp_' + str(phase), 'adp_O'])
-                Uiso_Zr = fit.newVar('Uiso_Zr_' + str(phase), value=0.0065, tags=['adp', str(phase), 'adp_' + str(phase), 'adp_Zr'])
-                Uiso_V = fit.newVar('Uiso_V_' + str(phase), value=0.01, tags=['adp', str(phase), 'adp_' + str(phase), 'adp_V'])
-
-                for atom in getattr(cpdf, phase).phase.getScatterers():
-                    if atom.element == 'O':
-                        fit.constrain(atom.Uiso, Uiso_O)
-                        fit.restrain(atom.Uiso, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
-                    if atom.element == 'Zr':
-                        fit.constrain(atom.Uiso, Uiso_Zr)
-                        fit.restrain(atom.Uiso, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
-                    if atom.element == 'V':
-                        fit.constrain(atom.Uiso, Uiso_V)
-                        fit.restrain(atom.Uiso, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
+                # one Uiso per element
+                for el, info in detailed_composition.items():
+                    u0 = info['Uiso']
+                    var = fit.newVar(f"Uiso_{el}_{phase}", value=u0, tags=['adp', el, str(phase)])
+                    for atom in getattr(cpdf, phase).phase.getScatterers():
+                        if atom.element == el:
+                            fit.constrain(atom.Uiso, var)
+                            fit.restrain(atom.Uiso, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
             else:
                 print('Adding isotropic displacement parameters as independent values.')
                 getattr(cpdf, phase).stru.anisotropy = False
                 for atom in getattr(cpdf, phase).phase.getScatterers():
+                    el = atom.element
                     if atom.name.upper() in added_adps:
-                        if atom.element == 'V':
-                            value = 0.01
-                        if atom.element == 'O':
-                            value = 0.025
-                        if atom.element == 'Zr':
-                            value = 0.0065
-                        fit.addVar(atom.Uiso, value=value, name=atom.name + '_' + str(phase),
-                                   fixed=False, tags=['adp', str(phase), 'adp_' + str(phase), 'adp_' + str(atom.element)])
+                        u0 = detailed_composition.get(el, {}).get('Uiso', 0.01)
+                        fit.addVar(atom.Uiso,
+                                   value=u0,
+                                   name=f"{atom.name}_{phase}",
+                                   fixed=False,
+                                   tags=['adp', str(phase), f"adp_{phase}", f"adp_{el}"])
                         fit.restrain(atom.Uiso, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
 
         #------------------ 8 ------------------#
@@ -1666,6 +1748,7 @@ def refinement_basic(cpdf, anisotropic, unified_Uiso, sgoffset=[0, 0, 0]):
         global_bond_vectors[phase] = bond_vectors
 
     return fit
+
 
 
 #-----------------------------------------------------------------------------
@@ -2013,14 +2096,11 @@ def refinement_basic_with_initial(
             getattr(cpdf_new, phase).stru.anisotropy = True
             print(f"[INFO]   Enabling anisotropic ADPs for phase '{phase}'")
             for par in sgpar.adppars:
-                atom_label = par.par.obj.label
-                atom_symbol = par.par.obj.element
-                if atom_symbol == "V":
-                    value = 0.01
-                elif atom_symbol == "O":
-                    value = 0.025
-                else:  # Zr
-                    value = 0.0065
+                atom = par.par.obj
+                atom_label  = atom.label
+                atom_symbol = atom.element
+                # pull Uiso directly from detailed_composition
+                u0 = detailed_composition[atom_symbol]['Uiso']
                 name = f"{par.name}_{atom_label}_{phase}"
                 tags = [
                     "adp",
@@ -2030,7 +2110,7 @@ def refinement_basic_with_initial(
                     f"adp_{atom_symbol}",
                     str(phase)
                 ]
-                fit_new.addVar(par, value=value, name=name, tags=tags)
+                fit_new.addVar(par, value=u0, name=name, tags=tags)
                 fit_new.restrain(
                     par,
                     lb=0.0, ub=0.1, scaled=True, sig=0.0005
@@ -2049,58 +2129,35 @@ def refinement_basic_with_initial(
             if unified_Uiso:
                 getattr(cpdf_new, phase).stru.anisotropy = False
                 print(f"[INFO]   Using unified isotropic Uiso for phase '{phase}'")
-                Uiso_O = fit_new.newVar(
-                    f"Uiso_O_{phase}",
-                    value=0.025,
-                    tags=["adp", str(phase), f"adp_{phase}", "adp_O"]
-                )
-                Uiso_Zr = fit_new.newVar(
-                    f"Uiso_Zr_{phase}",
-                    value=0.0065,
-                    tags=["adp", str(phase), f"adp_{phase}", "adp_Zr"]
-                )
-                Uiso_V = fit_new.newVar(
-                    f"Uiso_V_{phase}",
-                    value=0.01,
-                    tags=["adp", str(phase), f"adp_{phase}", "adp_V"]
-                )
-                for atom in getattr(cpdf_new, phase).phase.getScatterers():
-                    if atom.element == "O":
-                        fit_new.constrain(atom.Uiso, Uiso_O)
-                        fit_new.restrain(
-                            atom.Uiso,
-                            lb=0.0, ub=0.1, scaled=True, sig=0.0005
-                        )
-                    elif atom.element == "Zr":
-                        fit_new.constrain(atom.Uiso, Uiso_Zr)
-                        fit_new.restrain(
-                            atom.Uiso,
-                            lb=0.0, ub=0.1, scaled=True, sig=0.0005
-                        )
-                    elif atom.element == "V":
-                        fit_new.constrain(atom.Uiso, Uiso_V)
-                        fit_new.restrain(
-                            atom.Uiso,
-                            lb=0.0, ub=0.1, scaled=True, sig=0.0005
-                        )
+                # one Uiso per element
+                for el, info in detailed_composition.items():
+                    u0 = info['Uiso']
+                    var = fit_new.newVar(
+                        f"Uiso_{el}_{phase}",
+                        value=u0,
+                        tags=["adp", el, str(phase)]
+                    )
+                    for atom in getattr(cpdf_new, phase).phase.getScatterers():
+                        if atom.element == el:
+                            fit_new.constrain(atom.Uiso, var)
+                            fit_new.restrain(
+                                atom.Uiso,
+                                lb=0.0, ub=0.1, scaled=True, sig=0.0005
+                            )
             else:
                 getattr(cpdf_new, phase).stru.anisotropy = False
                 print(f"[INFO]   Using independent isotropic Uiso for phase '{phase}'")
                 for atom in getattr(cpdf_new, phase).phase.getScatterers():
                     if atom.name.upper() in added_adps:
-                        if atom.element == "V":
-                            value = 0.01
-                        elif atom.element == "O":
-                            value = 0.025
-                        else:
-                            value = 0.0065
+                        el = atom.element
+                        u0 = detailed_composition[el]['Uiso']
                         var_name = f"{atom.name}_{phase}"
                         fit_new.addVar(
                             atom.Uiso,
-                            value=value,
+                            value=u0,
                             name=var_name,
                             fixed=False,
-                            tags=["adp", str(phase), f"adp_{phase}", f"adp_{atom.element}"]
+                            tags=["adp", str(phase), f"adp_{phase}", f"adp_{el}"]
                         )
                         fit_new.restrain(
                             atom.Uiso,
@@ -2115,8 +2172,8 @@ def refinement_basic_with_initial(
             try:
                 atom_symbol = par.par.obj.element
                 mapped_name = mapped_xyzpars[par.name][0]
-                atom_label = mapped_xyzpars[par.name][1]
-                name_long = f"{mapped_name}_{phase}"
+                atom_label  = mapped_xyzpars[par.name][1]
+                name_long   = f"{mapped_name}_{phase}"
                 tags = [
                     "xyz",
                     f"xyz_{atom_symbol}",
@@ -2181,7 +2238,6 @@ def refinement_basic_with_initial(
         fit_new.fithooks[0].verbose = 2
 
     return fit_new
-
 #-----------------------------------------------------------------------------
 def copy_phase_structure(cpdf_target, cpdf_source, phase_index=0):
     """
@@ -2231,6 +2287,8 @@ def copy_phase_structure(cpdf_target, cpdf_source, phase_index=0):
     # Summary of copied atoms
     print(f"Copied xyz of {n_copied} atoms from {phase_name} of source → target.")
 
+
+#-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 def compare_fits(fitA, fitB, tol=1e-8):
@@ -2360,307 +2418,8 @@ def compare_fits(fitA, fitB, tol=1e-8):
 
     if not (onlyA or onlyB or diffs or onlyResA or onlyResB or res_diffs):
         print("No differences found between the two FitRecipe objects.")
-
-
-
-# =============================================================================
-#                              PROJECT SETUP
-# =============================================================================
-
-# =============================== Input Definitions ===========================
-# Define project name and directories
-project_name = 'ZirconiumVanadate25C209CperiodicCustomModels/'
-xrd_directory = 'data/'   # Directory containing diffraction data
-cif_directory = 'CIFs/'    # Directory containing CIF files
-fit_directory = 'fits/'    # Base directory for storing refinement results
-
-# =============================== XRD Data ====================================
-mypowderdata = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
-
-# =============================== Output Setup ================================
-time_stamp = datetime.now().strftime("%d%m%Y_%H%M%S")
-output_results_path = fit_directory + project_name + str(time_stamp) + '/'
-if not os.path.isdir(output_results_path):
-    os.makedirs(output_results_path)
-
-# =============================== Phase Setup ================================
-ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]}
-
-# ========================== Atomic Composition ===============================
-composition = 'O7 V2 Zr1'
-
-# =========================== Instrumental Parameters =========================
-qdamp = 2.70577268e-02
-qbroad = 2.40376789e-06
-qmax = 22.0
-
-# ================= Atomic Displacement Parameters (ADPs) ====================
-anisotropic = False
-unified_Uiso = True
-
-# ======================= Space Group Offset ================================
-sgoffset = [0.0, 0.0, 0.0]
-
-# ======================= PDF Generation Parameters ==========================
-myrange = (0.0, 80)
-myrstep = 0.05
-
-# ================== Fitting Procedure Parameters ============================
-convergence_options = {'disp': True}
-
-
-# =============================================================================
-#                             INITIALIZATION
-# =============================================================================
-syst_cores = multiprocessing.cpu_count()
-cpu_percent = psutil.cpu_percent()
-avail_cores = np.floor((100 - cpu_percent) / (100.0 / syst_cores))
-ncpu = int(np.max([1, avail_cores]))
-pool = Pool(processes=ncpu)
-
-added_params = {}
-global_bond_vectors = {}
-
-r0, g0, cfg = generatePDF(
-    xrd_directory + mypowderdata,
-    composition,
-    qmin=0.0,
-    qmax=qmax,
-    myrange=myrange,
-    myrstep=myrstep
-)
-
-cpdf = phase(r0, g0, cfg, cif_directory, ciffile, myrange, myrstep, qdamp, qbroad)
-
-fit0 = refinement_basic(
-    cpdf,
-    anisotropic=anisotropic,
-    unified_Uiso=unified_Uiso,
-    sgoffset=sgoffset
-)
-
-
-#----------------------------------------------------------------------
-#                       SPECIAL STRUCTURE MODIFICATION
-#----------------------------------------------------------------------
-# Here we load a “special” refined structure from a previous PDF refinement
-# (e.g. the result of refining Phase0 at 25 °C in space group P1, replicate (1×1×1)).
-# This refined CIF contains updated atomic positions that broke higher symmetry
-# constraints in order to capture subtle distortions at this temperature.
-cif_directory_special = 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/'  # folder with the refined‐structure CIFs
-# Define the special CIF: filename → [space group, periodicity, supercell dims]
-# ‘P1’ means no symmetry constraints, so all atom positions were independently refined.
-# True indicates the structure is treated as periodic; (1,1,1) means no supercell expansion.
-ciffile_special = {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
-
-# Build a PDFContribution for this “special” structure using the same PDF data (r0, g0).
-# This gives us access to the fully‐refined atomic coordinates under P1.
-cpdf_special = phase(
-    r0, g0, cfg,
-    cif_directory_special, ciffile_special,
-    myrange, myrstep,
-    qdamp, qbroad
-)
-
-# At this point we have two contributions:
-#  - cpdf         : the original model with higher‐symmetry CIF(s)
-#  - cpdf_special : the P1‐refined model with individually‐refined atom positions
-# We now transfer the refined Phase0 atomic coordinates from cpdf_special → cpdf,
-# so that subsequent refinements begin from these updated positions.
-copy_phase_structure(cpdf, cpdf_special, phase_index=0)
-
-
-
-
-
-
-# =============================================================================
-#                               FITTING STEPS
-# =============================================================================
-
-# ========================== Step 0: Initial Fit =============================
-i = 0
-fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-fitting_range = [1.5, 27]
-residualEquation = 'resv'
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-constrain_dihedrals = (False, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['Pa-3'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# # ========================== Step 1: Refinement ==============================
-i = 1
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-fit0 = modify_fit(fit0, cpdf, ['Pa-3'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 2: Adjust Symmetry =========================
-i = 2
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['P213'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# # ========================== Step 3: Adjust Symmetry =========================
-i = 3
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['P23'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 4: Further Refinement ======================
-i = 4
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-fit0 = modify_fit(fit0, cpdf, ['P23'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 5: Lowest Symmetry =========================
-i = 5
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-constrain_dihedrals = (False, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['P1'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 6: Lowest Symmetry =========================
-i = 6
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-constrain_dihedrals = (False, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['P1'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# =============================================================================
-#                             FINALIZE RESULTS
-# =============================================================================
-finalize_results(cpdf, fit0, output_results_path, myrange, myrstep)
-
-
-
-# =============================================================================
-#                   CONTINUE FITTING WITH DIFFERENT DATA
-# =============================================================================
-
-# =============================== XRD Data ====================================
-mypowderdata = 'PDF_ZrV2O7_061_209C_avg_346_365_00000.dat'
-
-# =============================== Output Setup ================================
-time_stamp = datetime.now().strftime("%d%m%Y_%H%M%S")
-output_results_path = fit_directory + project_name + str(time_stamp) + '/'
-if not os.path.isdir(output_results_path):
-    os.makedirs(output_results_path)
-
-# Load the new data    
-r0, g0, cfg = generatePDF(
-    xrd_directory + mypowderdata,
-    composition,
-    qmin=0.0,
-    qmax=qmax,
-    myrange=myrange,
-    myrstep=myrstep
-)
-
-# Build a fresh cpdf2 that reuses the exact same Structures from `cpdf`
-cpdf2 = rebuild_cpdf(
-    old_cpdf=cpdf,
-    r_obs=r0,
-    g_obs=g0,
-    myrange=myrange,
-    myrstep=myrstep,
-    ncpu=ncpu,
-    pool=pool,
-    name='cpdf2'
-)
-
-# Re‐initialize a brand‐new FitRecipe from cpdf2:
-fit1 = refinement_basic_with_initial(fit0,
-    cpdf2, ['Pa-3'],
-    anisotropic=anisotropic,
-    unified_Uiso=unified_Uiso,
-    sgoffset=sgoffset, recalculate_bond_vectors=True)
-    
-
-
-# ========================== Step 0: Initial Fit (new data) ==================
-i = 0
-fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-fitting_range = [1.5, 27]
-residualEquation = 'resv'
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-constrain_dihedrals = (False, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['Pa-3'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 1: Refinement (new data) ====================
-i = 1
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-fit1 = modify_fit(fit1, cpdf2, ['Pa-3'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 2: Adjust Symmetry (new data) ===============
-i = 2
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['P213'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 3: Adjust Symmetry (new data) ===============
-i = 3
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['P23'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 4: Further Refinement (new data) ===========
-i = 4
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-fit1 = modify_fit(fit1, cpdf2, ['P23'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 5: Lowest Symmetry (new data) ==============
-i = 5
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-constrain_dihedrals = (False, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['P1'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 6: Lowest Symmetry (new data) ==============
-i = 6
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-constrain_dihedrals = (False, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['P1'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# =============================================================================
-#                             FINALIZE RESULTS (new data)
-# =============================================================================
-finalize_results(cpdf2, fit1, output_results_path, myrange, myrstep)
-
-
-
-# # =============================================================================
+        
+#=============================================================================
 # # Simulate PDFs
 # # =============================================================================
 def simulate_pdf_workflow(
@@ -2751,69 +2510,325 @@ def simulate_pdf_workflow(
         )
 
     return cpdf_simulated
+        
+#=============================================================================        
+# =============================================================================
+#                             INITIALIZATION
+# =============================================================================
+syst_cores = multiprocessing.cpu_count()
+cpu_percent = psutil.cpu_percent()
+avail_cores = np.floor((100 - cpu_percent) / (100.0 / syst_cores))
+ncpu = int(np.max([1, avail_cores]))
+pool = Pool(processes=ncpu)
 
+added_params = {}
+global_bond_vectors = {}
 
-# # =============================================================================
-# # Run simulation workflow with specific parameters (using original code variables)
-# # =============================================================================
-
-# CIF files for simulation
-cif_directory = 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/'
-ciffile       = {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
-
-# Experimental PDF data
-xrd_directory    = 'data/'
-mypowderdata     = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
-composition      = 'O7 V2 Zr1'
-
-# Instrumental/sample parameters
-qdamp   = 2.70577268e-02
-qbroad  = 2.40376789e-06
-qmax    = 22.0
-myrange = (0.0, 80.0)
-myrstep = 0.05
-
-# Optimized parameters from prior refinement
-optimized_params = {
-    'Phase0': {
-        's':      4.92399836e-01,
-        'psize':  2.66658626e+02,
-        'delta2': 2.53696631e+00
-    }
-}
-
-# Default Uiso by element
-default_Uiso = {'Zr':5.79086780e-04, 'V':3.21503909e-03, 'O':7.21519003e-03}
-
-# Fitting and output settings
-fitting_range       = [1.5, 27]
-csv_filename        = 'sim_vs_obs.csv'
-output_results_path = 'resultsSimulations/25C_Phase0_6'
-if not os.path.isdir(output_results_path):
-    os.makedirs(output_results_path)
-
-# Execute workflow
-cpdf_simulated = simulate_pdf_workflow(
-    cif_directory,
-    ciffile,
-    xrd_directory,
-    mypowderdata,
+r0, g0, cfg = generatePDF(
+    xrd_directory + mypowderdata,
     composition,
-    qdamp,
-    qbroad,
-    qmax,
-    myrange,
-    myrstep,
-    optimized_params,
-    default_Uiso,
-    fitting_range,
-    csv_filename,
-    output_results_path,
-    font_size=14,
-    label_font_size=20
+    qmin=0.0,
+    qmax=qmax,
+    myrange=myrange,
+    myrstep=myrstep
+)
+
+cpdf = phase(r0, g0, cfg, cif_directory, ciffile, myrange, myrstep, qdamp, qbroad)
+
+fit0 = refinement_basic(
+    cpdf,
+    anisotropic=anisotropic,
+    unified_Uiso=unified_Uiso,
+    sgoffset=sgoffset
 )
 
 
-# # =============================================================================
-# # End of script
-# # =============================================================================
+#----------------------------------------------------------------------
+#                       SPECIAL STRUCTURE MODIFICATION
+#----------------------------------------------------------------------
+# Here we load a “special” refined structure from a previous PDF refinement
+# (e.g. the result of refining Phase0 at 25 °C in space group P1, replicate (1×1×1)).
+# This refined CIF contains updated atomic positions that broke higher symmetry
+# constraints in order to capture subtle distortions at this temperature.
+#cif_directory_special = 'fits/ZirconiumVanadate25Cperiodic/18032025_071408/'  # folder with the refined‐structure CIFs
+# # Define the special CIF: filename → [space group, periodicity, supercell dims]
+# # ‘P1’ means no symmetry constraints, so all atom positions were independently refined.
+# # True indicates the structure is treated as periodic; (1,1,1) means no supercell expansion.
+# ciffile_special = {'Phase0_6.cif': ['P1', True, (1, 1, 1)]}
+
+# # Build a PDFContribution for this “special” structure using the same PDF data (r0, g0).
+# # This gives us access to the fully‐refined atomic coordinates under P1.
+# cpdf_special = phase(
+#     r0, g0, cfg,
+#     cif_directory_special, ciffile_special,
+#     myrange, myrstep,
+#     qdamp, qbroad
+# )
+
+# # At this point we have two contributions:
+# #  - cpdf         : the original model with higher‐symmetry CIF(s)
+# #  - cpdf_special : the P1‐refined model with individually‐refined atom positions
+# # We now transfer the refined Phase0 atomic coordinates from cpdf_special → cpdf,
+# # so that subsequent refinements begin from these updated positions.
+# copy_phase_structure(cpdf, cpdf_special, phase_index=0)
+
+
+
+
+
+
+# =============================================================================
+#                               FITTING STEPS
+# =============================================================================
+
+# ========================== Step 0: Initial Fit =============================
+i = 0
+fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+fitting_range = [1.5, 27]
+residualEquation = 'resv'
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+constrain_dihedrals = (False, 0.001)
+fit0 = modify_fit(fit0, cpdf, ['Pa-3'], sgoffset=sgoffset)
+fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
+# # ========================== Step 1: Refinement ==============================
+i = 1
+constrain_bonds = (True, 0.0001)
+constrain_angles = (True, 0.0001)
+fit0 = modify_fit(fit0, cpdf, ['Pa-3'], sgoffset=sgoffset)
+fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 2: Adjust Symmetry =========================
+i = 2
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+fit0 = modify_fit(fit0, cpdf, ['P213'], sgoffset=sgoffset)
+fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
+# # ========================== Step 3: Adjust Symmetry =========================
+i = 3
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+fit0 = modify_fit(fit0, cpdf, ['P23'], sgoffset=sgoffset)
+fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 4: Further Refinement ======================
+i = 4
+constrain_bonds = (True, 0.0001)
+constrain_angles = (True, 0.0001)
+fit0 = modify_fit(fit0, cpdf, ['P23'], sgoffset=sgoffset)
+fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 5: Lowest Symmetry =========================
+i = 5
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+constrain_dihedrals = (False, 0.001)
+fit0 = modify_fit(fit0, cpdf, ['P1'], sgoffset=sgoffset)
+fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 6: Lowest Symmetry =========================
+i = 6
+constrain_bonds = (True, 0.0001)
+constrain_angles = (True, 0.0001)
+constrain_dihedrals = (False, 0.001)
+fit0 = modify_fit(fit0, cpdf, ['P1'], sgoffset=sgoffset)
+fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
+fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+
+# =============================================================================
+#                             FINALIZE RESULTS
+# =============================================================================
+finalize_results(cpdf, fit0, output_results_path, myrange, myrstep)
+
+
+
+# =============================================================================
+#                   CONTINUE FITTING WITH DIFFERENT DATA
+# =============================================================================
+
+# =============================== XRD Data ====================================
+mypowderdata = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
+
+# =============================== Output Setup ================================
+time_stamp = datetime.now().strftime("%d%m%Y_%H%M%S")
+output_results_path = fit_directory + project_name + str(time_stamp) + '/'
+if not os.path.isdir(output_results_path):
+    os.makedirs(output_results_path)
+
+# Load the new data    
+r0, g0, cfg = generatePDF(
+    xrd_directory + mypowderdata,
+    composition,
+    qmin=0.0,
+    qmax=qmax,
+    myrange=myrange,
+    myrstep=myrstep
+)
+
+# Build a fresh cpdf2 that reuses the exact same Structures from `cpdf`
+cpdf2 = rebuild_cpdf(
+    old_cpdf=cpdf,
+    r_obs=r0,
+    g_obs=g0,
+    myrange=myrange,
+    myrstep=myrstep,
+    ncpu=ncpu,
+    pool=pool,
+    name='cpdf2'
+)
+
+# Re‐initialize a brand‐new FitRecipe from cpdf2:
+fit1 = refinement_basic_with_initial(fit0,
+    cpdf2, ['Pa-3'],
+    anisotropic=anisotropic,
+    unified_Uiso=unified_Uiso,
+    sgoffset=sgoffset, recalculate_bond_vectors=False)
+    
+
+
+# ========================== Step 0: Initial Fit (new data) ==================
+i = 0
+fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+fitting_range = [1.5, 27]
+residualEquation = 'resv'
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+constrain_dihedrals = (False, 0.001)
+fit1 = modify_fit(fit1, cpdf2, ['Pa-3'], sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 1: Refinement (new data) ====================
+i = 1
+constrain_bonds = (True, 0.0001)
+constrain_angles = (True, 0.0001)
+fit1 = modify_fit(fit1, cpdf2, ['Pa-3'], sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 2: Adjust Symmetry (new data) ===============
+i = 2
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+fit1 = modify_fit(fit1, cpdf2, ['P213'], sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 3: Adjust Symmetry (new data) ===============
+i = 3
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+fit1 = modify_fit(fit1, cpdf2, ['P23'], sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 4: Further Refinement (new data) ===========
+i = 4
+constrain_bonds = (True, 0.0001)
+constrain_angles = (True, 0.0001)
+fit1 = modify_fit(fit1, cpdf2, ['P23'], sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 5: Lowest Symmetry (new data) ==============
+i = 5
+constrain_bonds = (True, 0.001)
+constrain_angles = (True, 0.001)
+constrain_dihedrals = (False, 0.001)
+fit1 = modify_fit(fit1, cpdf2, ['P1'], sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# ========================== Step 6: Lowest Symmetry (new data) ==============
+i = 6
+constrain_bonds = (True, 0.0001)
+constrain_angles = (True, 0.0001)
+constrain_dihedrals = (False, 0.001)
+fit1 = modify_fit(fit1, cpdf2, ['P1'], sgoffset=sgoffset)
+fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
+fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+
+# =============================================================================
+#                             FINALIZE RESULTS (new data)
+# =============================================================================
+finalize_results(cpdf2, fit1, output_results_path, myrange, myrstep)
+
+
+
+# 
+
+
+# # # # =============================================================================
+# # # # Run simulation workflow with specific parameters (using original code variables)
+# # # # =============================================================================
+
+# # # CIF files for simulation
+# # cif_directory = 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/'
+# # ciffile       = {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
+
+# # # Experimental PDF data
+# # xrd_directory    = 'data/'
+# # mypowderdata     = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
+# # composition      = 'O7 V2 Zr1'
+
+# # # Instrumental/sample parameters
+# # qdamp   = 2.70577268e-02
+# # qbroad  = 2.40376789e-06
+# # qmax    = 22.0
+# # myrange = (0.0, 80.0)
+# # myrstep = 0.05
+
+# # # Optimized parameters from prior refinement
+# # optimized_params = {
+# #     'Phase0': {
+# #         's':      4.92399836e-01,
+# #         'psize':  2.66658626e+02,
+# #         'delta2': 2.53696631e+00
+# #     }
+# # }
+
+# # # Default Uiso by element
+# # default_Uiso = {'Zr':5.79086780e-04, 'V':3.21503909e-03, 'O':7.21519003e-03}
+
+# # # Fitting and output settings
+# # fitting_range       = [1.5, 27]
+# # csv_filename        = 'sim_vs_obs.csv'
+# # output_results_path = 'resultsSimulations/25C_Phase0_6'
+# # if not os.path.isdir(output_results_path):
+# #     os.makedirs(output_results_path)
+
+# # # Execute workflow
+# # cpdf_simulated = simulate_pdf_workflow(
+# #     cif_directory,
+# #     ciffile,
+# #     xrd_directory,
+# #     mypowderdata,
+# #     composition,
+# #     qdamp,
+# #     qbroad,
+# #     qmax,
+# #     myrange,
+# #     myrstep,
+# #     optimized_params,
+# #     default_Uiso,
+# #     fitting_range,
+# #     csv_filename,
+# #     output_results_path,
+# #     font_size=14,
+# #     label_font_size=20
+# # )        
+
+    # # # =============================================================================
+    # # # End of script
+    # # # =============================================================================
+
+
+
