@@ -50,6 +50,7 @@ import os           # Operating system interface.
 import io           # Working with streams
 import contextlib   # Context manager
 import pickle       # For serializing and deserializing Python objects.
+from collections import namedtuple # For creating refinement steps object for easy access of parameters 
 from datetime import datetime  # for time related operations
 from itertools import combinations  # Combinatorial functions
 
@@ -179,6 +180,21 @@ convergence_options = {'disp': True}
 #                               ALL THE FUNCTIONS 
 ###############################################################################
 
+# =============================================================================
+# Checkpointing functions
+# =============================================================================
+def save_checkpoint(step, fit, cpdf, filename="checkpoint.pkl"):
+    with open(filename, "wb") as f:
+        pickle.dump({"step": step, "fit": fit, "cpdf": cpdf}, f)
+
+
+def load_checkpoint(filename="checkpoint.pkl"):
+    if os.path.exists(filename):
+        with open(filename, "rb") as f:
+            data = pickle.load(f)
+        return data["step"], data["fit"], data["cpdf"]
+    else:
+        return 0, None, None  # Start from scratch
 
 # =============================================================================
 # Visualisation and summary functions
@@ -2524,7 +2540,11 @@ pool = Pool(processes=ncpu)
 added_params = {}
 global_bond_vectors = {}
 
-r0, g0, cfg = generatePDF(
+checkpoint_file = "checkpoint.pkl"
+start_step, fit0, cpdf = load_checkpoint(checkpoint_file)
+
+if fit0 is None or cpdf is None:
+    r0, g0, cfg = generatePDF(
     xrd_directory + mypowderdata,
     composition,
     qmin=0.0,
@@ -2533,14 +2553,14 @@ r0, g0, cfg = generatePDF(
     myrstep=myrstep
 )
 
-cpdf = phase(r0, g0, cfg, cif_directory, ciffile, myrange, myrstep, qdamp, qbroad)
-
-fit0 = refinement_basic(
-    cpdf,
-    anisotropic=anisotropic,
-    unified_Uiso=unified_Uiso,
-    sgoffset=sgoffset
-)
+    cpdf = phase(r0, g0, cfg, cif_directory, ciffile, myrange, myrstep, qdamp, qbroad)
+    
+    fit0 = refinement_basic(
+        cpdf,
+        anisotropic=anisotropic,
+        unified_Uiso=unified_Uiso,
+        sgoffset=sgoffset
+    )
 
 
 #----------------------------------------------------------------------
@@ -2565,83 +2585,58 @@ fit0 = refinement_basic(
 #     qdamp, qbroad
 # )
 
-# # At this point we have two contributions:
-# #  - cpdf         : the original model with higher‐symmetry CIF(s)
+# # At this point, we have two contributions:
+# #  - cpdf: the original model with higher‐symmetry CIF(s)
 # #  - cpdf_special : the P1‐refined model with individually‐refined atom positions
 # # We now transfer the refined Phase0 atomic coordinates from cpdf_special → cpdf,
 # # so that subsequent refinements begin from these updated positions.
 # copy_phase_structure(cpdf, cpdf_special, phase_index=0)
 
-
-
-
-
-
 # =============================================================================
 #                               FITTING STEPS
 # =============================================================================
 
-# ========================== Step 0: Initial Fit =============================
-i = 0
+# Initialize RefinementStep namedtuple to store refinement parameters 
+RefinementStep = namedtuple('RefinementStep', [
+    'step_index', 'spacegroup', 'constrain_bonds', 'constrain_angles', 'constrain_dihedrals'
+])
+
+refinement_steps = [
+    RefinementStep(0, ['Pa-3'], (True, 0.001), (True, 0.001), (False, 0.001)),
+    RefinementStep(1, ['Pa-3'], (True, 0.0001), (True, 0.0001), (False, 0.001)),
+    RefinementStep(2, ['P213'], (True, 0.001), (True, 0.001), (False, 0.001)),
+    RefinementStep(3, ['P23'], (True, 0.001), (True, 0.001), (False, 0.001)),
+    RefinementStep(4, ['P23'], (True, 0.0001), (True, 0.0001), (False, 0.001)),
+    RefinementStep(5, ['P1'], (True, 0.001), (True, 0.001), (False, 0.001)),
+    RefinementStep(6, ['P1'], (True, 0.0001), (True, 0.0001), (False, 0.001)),
+]
+
+# Define common parameters
 fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
 fitting_range = [1.5, 27]
 residualEquation = 'resv'
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-constrain_dihedrals = (False, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['Pa-3'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
 
-# # ========================== Step 1: Refinement ==============================
-i = 1
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-fit0 = modify_fit(fit0, cpdf, ['Pa-3'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+# ======================== Start fits with checkpointing =====================
 
-# ========================== Step 2: Adjust Symmetry =========================
-i = 2
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['P213'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+for step in refinement_steps:
+    if step.step_index < start_step:
+        continue  # Already completed this step
 
-# # ========================== Step 3: Adjust Symmetry =========================
-i = 3
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['P23'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 4: Further Refinement ======================
-i = 4
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-fit0 = modify_fit(fit0, cpdf, ['P23'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 5: Lowest Symmetry =========================
-i = 5
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-constrain_dihedrals = (False, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['P1'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 6: Lowest Symmetry =========================
-i = 6
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-constrain_dihedrals = (False, 0.001)
-fit0 = modify_fit(fit0, cpdf, ['P1'], sgoffset=sgoffset)
-fit0 = refinement_RigidBody(fit0, cpdf, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False)
-fit_me(i, fitting_range, myrstep, fitting_order, fit0, cpdf, residualEquation, output_results_path, **convergence_options)
+    fit0 = modify_fit(fit0, cpdf, step.spacegroup, sgoffset=sgoffset)
+    fit0 = refinement_RigidBody(
+        fit0, cpdf, 
+        step.constrain_bonds, 
+        step.constrain_angles, 
+        step.constrain_dihedrals, 
+        adaptive=False
+    )
+    fit_me(
+        step.step_index, fitting_range, myrstep, fitting_order, 
+        fit0, cpdf, residualEquation, output_results_path, **convergence_options
+    )
+    # --- Save checkpoint after each step ---
+    save_checkpoint(step.step_index + 1, fit0, cpdf, checkpoint_file)
+    print(f"CHECKPOINT Saved at step {step.step_index + 1}")
 
 # =============================================================================
 #                             FINALIZE RESULTS
@@ -2663,105 +2658,85 @@ output_results_path = fit_directory + project_name + str(time_stamp) + '/'
 if not os.path.isdir(output_results_path):
     os.makedirs(output_results_path)
 
-# Load the new data    
-r0, g0, cfg = generatePDF(
-    xrd_directory + mypowderdata,
-    composition,
-    qmin=0.0,
-    qmax=qmax,
-    myrange=myrange,
-    myrstep=myrstep
-)
+checkpoint_file_2 = "checkpoint_2.pkl"
+start_step_2, fit1, cpdf2 = load_checkpoint(checkpoint_file_2)
 
-# Build a fresh cpdf2 that reuses the exact same Structures from `cpdf`
-cpdf2 = rebuild_cpdf(
-    old_cpdf=cpdf,
-    r_obs=r0,
-    g_obs=g0,
-    myrange=myrange,
-    myrstep=myrstep,
-    ncpu=ncpu,
-    pool=pool,
-    name='cpdf2'
-)
-
-# Re‐initialize a brand‐new FitRecipe from cpdf2:
-fit1 = refinement_basic_with_initial(fit0,
-    cpdf2, ['Pa-3'],
-    anisotropic=anisotropic,
-    unified_Uiso=unified_Uiso,
-    sgoffset=sgoffset, recalculate_bond_vectors=False)
+if fit1 is None or cpdf2 is None:
+    # Load the new data    
+    r0, g0, cfg = generatePDF(
+        xrd_directory + mypowderdata,
+        composition,
+        qmin=0.0,
+        qmax=qmax,
+        myrange=myrange,
+        myrstep=myrstep
+    )
     
+    # Build a fresh cpdf2 that reuses the exact same Structures from `cpdf`
+    cpdf2 = rebuild_cpdf(
+        old_cpdf=cpdf,
+        r_obs=r0,
+        g_obs=g0,
+        myrange=myrange,
+        myrstep=myrstep,
+        ncpu=ncpu,
+        pool=pool,
+        name='cpdf2'
+    )
+    
+    # Re‐initialize a brand‐new FitRecipe from cpdf2:
+    fit1 = refinement_basic_with_initial(fit0,
+        cpdf2, ['Pa-3'],
+        anisotropic=anisotropic,
+        unified_Uiso=unified_Uiso,
+        sgoffset=sgoffset, recalculate_bond_vectors=False)
 
+# Initialize RefinementStep2 namedtuple to store refinement parameters 
+RefinementStep2 = namedtuple('RefinementStep', [
+    'step_index', 'spacegroup', 'constrain_bonds', 'constrain_angles', 'constrain_dihedrals'
+])
 
-# ========================== Step 0: Initial Fit (new data) ==================
-i = 0
+refinement_steps2 = [
+    RefinementStep2(0, ['Pa-3'], (True, 0.001), (True, 0.001), (False, 0.001)),
+    RefinementStep2(1, ['Pa-3'], (True, 0.0001), (True, 0.0001), (False, 0.001)),
+    RefinementStep2(2, ['P213'], (True, 0.001), (True, 0.001), (False, 0.001)),
+    RefinementStep2(3, ['P23'], (True, 0.001), (True, 0.001), (False, 0.001)),
+    RefinementStep2(4, ['P23'], (True, 0.0001), (True, 0.0001), (False, 0.001)),
+    RefinementStep2(5, ['P1'], (True, 0.001), (True, 0.001), (False, 0.001)),
+    RefinementStep2(6, ['P1'], (True, 0.0001), (True, 0.0001), (False, 0.001)),
+]
+
+# Define common parameters
 fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
 fitting_range = [1.5, 27]
 residualEquation = 'resv'
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-constrain_dihedrals = (False, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['Pa-3'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
 
-# ========================== Step 1: Refinement (new data) ====================
-i = 1
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-fit1 = modify_fit(fit1, cpdf2, ['Pa-3'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+# ======================== Start fits with checkpointing =====================
 
-# ========================== Step 2: Adjust Symmetry (new data) ===============
-i = 2
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['P213'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+for step2 in refinement_steps2:
+    if step2.step_index < start_step_2:
+        continue  # Already completed this step
 
-# ========================== Step 3: Adjust Symmetry (new data) ===============
-i = 3
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['P23'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 4: Further Refinement (new data) ===========
-i = 4
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-fit1 = modify_fit(fit1, cpdf2, ['P23'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 5: Lowest Symmetry (new data) ==============
-i = 5
-constrain_bonds = (True, 0.001)
-constrain_angles = (True, 0.001)
-constrain_dihedrals = (False, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['P1'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
-
-# ========================== Step 6: Lowest Symmetry (new data) ==============
-i = 6
-constrain_bonds = (True, 0.0001)
-constrain_angles = (True, 0.0001)
-constrain_dihedrals = (False, 0.001)
-fit1 = modify_fit(fit1, cpdf2, ['P1'], sgoffset=sgoffset)
-fit1 = refinement_RigidBody(fit1, cpdf2, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=True)
-fit_me(i, fitting_range, myrstep, fitting_order, fit1, cpdf2, residualEquation, output_results_path, **convergence_options)
+    fit1 = modify_fit(fit1, cpdf2, step2.spacegroup, sgoffset=sgoffset)
+    fit0 = refinement_RigidBody(
+        fit1, cpdf2, 
+        step2.constrain_bonds, 
+        step2.constrain_angles, 
+        step2.constrain_dihedrals, 
+        adaptive=False
+    )
+    fit_me(
+        step2.step_index, fitting_range, myrstep, fitting_order, 
+        fit1, cpdf2, residualEquation, output_results_path, **convergence_options
+    )
+    # --- Save checkpoint after each step ---
+    save_checkpoint(step2.step_index + 1, fit1, cpdf2, checkpoint_file_2)
+    print(f"CHECKPOINT Saved at step {step2.step_index + 1}")
 
 # =============================================================================
 #                             FINALIZE RESULTS (new data)
 # =============================================================================
 finalize_results(cpdf2, fit1, output_results_path, myrange, myrstep)
-
-
 
 # 
 
