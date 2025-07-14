@@ -99,7 +99,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # =============================== Input Definitions ===========================
 # Define project name and directories
-project_name = 'ZirconiumVanadate25Cto25C_Rec_False/'
+project_name = 'ZirconiumVanadate25Cto25C_multirange/'
 xrd_directory = 'data/'   # Directory containing diffraction data
 cif_directory = 'CIFs/'    # Directory containing CIF files
 fit_directory = 'fits/'    # Base directory for storing refinement results
@@ -1591,7 +1591,7 @@ def fit_me(i, fitting_range, myrstep, fitting_order, fit, cpdf, residualEquation
             print(f'Freeing parameter: {step}')
             fit.free(step)
             optimizer = 'L-BFGS-B'
-            #minimize(fit.scalarResidual, fit.values, method=optimizer, options=convergence_options)
+            minimize(fit.scalarResidual, fit.values, method=optimizer, options=convergence_options)
         except Exception:
             continue
 
@@ -2697,7 +2697,7 @@ fit1 = refinement_basic_with_initial(fit0,
 # ========================== Step 0: Initial Fit (new data) ==================
 i = 0
 fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-fitting_range = [1.5, 27]
+fitting_range = [27, 70]
 residualEquation = 'resv'
 constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
