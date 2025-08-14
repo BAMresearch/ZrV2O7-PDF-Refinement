@@ -83,6 +83,8 @@ from scipy.optimize import leastsq, least_squares, minimize
 import psutil
 import multiprocessing
 from multiprocessing import Pool, cpu_count
+import threading
+import dill
 
 # =============================================================================
 # Additional utilities for progress tracking and distance calculations
@@ -99,7 +101,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # =============================== Input Definitions ===========================
 # Define project name and directories
-project_name = 'ZirconiumVanadate25Cto25C_multirange/'
+project_name = 'ZirconiumVanadate25Cto25C_TESTS/'
 xrd_directory = 'data/'   # Directory containing diffraction data
 cif_directory = 'CIFs/'    # Directory containing CIF files
 fit_directory = 'fits/'    # Base directory for storing refinement results
@@ -170,6 +172,16 @@ myrstep = 0.05
 # ================== Fitting Procedure Parameters ============================
 convergence_options = {'disp': True}
 
+# A global counter to track the number of minimization iterations.
+# This is necessary because scipy.optimize.minimize's callback does not
+# provide the iteration number.
+global iteration_counter
+iteration_counter = 0
+
+# Initialize a lock for thread-safe file I/O
+global file_lock
+file_lock = threading.Lock()
+
 
 
 
@@ -183,6 +195,45 @@ convergence_options = {'disp': True}
 # =============================================================================
 # Visualisation and summary functions
 # =============================================================================
+def save_state_callback(xk, fit, cpdf, output_path, iteration_interval):
+    """
+    Callback function to save the FitRecipe object and CIFs periodically,
+    overwriting previous versions to save only the most recent state.
+
+    Parameters:
+    - xk: The current parameter vector from the optimizer (required by scipy).
+    - fit: The FitRecipe object.
+    - cpdf: The PDFContribution object.
+    - output_path: The directory to save the files.
+    - iteration_interval: The frequency (in iterations) to save the state.
+    """
+    global iteration_counter
+    iteration_counter += 1
+    
+    # Check if the current iteration is a multiple of the saving interval
+    if iteration_counter > 0 and iteration_counter % iteration_interval == 0:
+        print(f"Saving current state at iteration {iteration_counter}...")
+        
+        # Use a lock to ensure thread-safe file operations
+        with file_lock:
+            # Save the FitRecipe object using a fixed filename to overwrite
+            dill_filename = os.path.join(output_path, 'fit_state_current.dill')
+            try:
+                with open(dill_filename, 'wb') as f:
+                    dill.dump(fit, f)
+            except Exception as e:
+                print(f"[ERROR] Could not save dill file: {e}")
+            
+            # Export the current refined structures to CIFs with a fixed filename
+            try:
+                export_cifs('current', cpdf, output_path)
+            except Exception as e:
+                print(f"[ERROR] Could not save CIF file: {e}")
+            
+            print(f"Current state saved to {dill_filename} and CIFs exported.")  
+        
+#----------------------------------------------------------------------------    
+
 def plotmyfit(cpdf, baseline=-4, ax=None):
     """
     Plot the observed, calculated, and difference (Gobs, Gcalc, Gdiff) PDFs.
@@ -1564,8 +1615,8 @@ def map_sgpar_params(sgpar, attr_name):
 # =============================================================================
 def fit_me(i, fitting_range, myrstep, fitting_order, fit, cpdf, residualEquation, output_results_path, **convergence_options):
     """
-    Perform the refinement process for a single fitting step.
-
+    Perform the refinement process for a single fitting step with a saving callback.
+    
     Parameters:
     - i: Integer, index of the fitting step.
     - fitting_range: List of two floats, the r range for the fit (e.g., [1.5, 27]).
@@ -1576,34 +1627,50 @@ def fit_me(i, fitting_range, myrstep, fitting_order, fit, cpdf, residualEquation
     - residualEquation: String, residual equation used for fitting (e.g., 'resv').
     - output_results_path: String, path to save the fitting results.
     - **convergence_options: Additional keyword arguments for the optimizer.
-
+    
     Returns:
     - None
     """
+    global iteration_counter
     print('-------------------------------------------------------------------')
     print(f"Fitting stage {i}")
     print('-------------------------------------------------------------------')
     cpdf.setCalculationRange(fitting_range[0], fitting_range[1], myrstep)
     cpdf.setResidualEquation(residualEquation)
     fit.fix('all')
+    
+    # Define the iteration interval for saving the state.
+    save_interval = 1
+    
+    # Reset the counter at the start of the entire stage, not for each step
+    iteration_counter = 0 
+    
     for step in fitting_order:
         try:
             print(f'Freeing parameter: {step}')
             fit.free(step)
             optimizer = 'L-BFGS-B'
-            minimize(fit.scalarResidual, fit.values, method=optimizer, options=convergence_options)
-        except Exception:
+            
+            minimize(
+                fit.scalarResidual,
+                fit.values,
+                method=optimizer,
+                options=convergence_options,
+                callback=lambda x: save_state_callback(x, fit, cpdf, output_results_path, save_interval)
+            )
+            
+        except Exception as e:
+            print(f"[CRITICAL ERROR] An error occurred during minimization for step '{step}': {e}")
             continue
 
+    # Final saving of results after a full fitting stage, using the stage number as the filename.
+    # This will save a final, non-overwritten version.
     res = saveResults(i, fit, cpdf, output_results_path)
 
-    # Statistics on the bond lengths and angle distributions
     for phase_name in cpdf._generators:
         phase = getattr(cpdf, str(phase_name)).phase
         visualize_fit_summary(cpdf, phase, output_results_path + f"{i}_{phase_name}_", font_size=14, label_font_size=20)
     return
-
-
 #-----------------------------------------------------------------------------
 def refinement_basic(cpdf, anisotropic, unified_Uiso, sgoffset=[0, 0, 0]):
     """
@@ -2697,7 +2764,7 @@ fit1 = refinement_basic_with_initial(fit0,
 # ========================== Step 0: Initial Fit (new data) ==================
 i = 0
 fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-fitting_range = [27, 70]
+fitting_range = [27, 60]
 residualEquation = 'resv'
 constrain_bonds = (True, 0.001)
 constrain_angles = (True, 0.001)
