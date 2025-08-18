@@ -50,6 +50,7 @@ import os           # Operating system interface.
 import io           # Working with streams
 import contextlib   # Context manager
 import pickle       # For serializing and deserializing Python objects.
+import dill         # For advanced serializing and deserializing Python objects.
 from datetime import datetime  # for time related operations
 from itertools import combinations  # Combinatorial functions
 
@@ -84,7 +85,7 @@ import psutil
 import multiprocessing
 from multiprocessing import Pool, cpu_count
 import threading
-import dill
+
 
 # =============================================================================
 # Additional utilities for progress tracking and distance calculations
