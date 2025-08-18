@@ -60,6 +60,7 @@ This section outlines software installation using Anaconda, with required and op
 - Seaborn
 - tqdm
 - psutil
+- dill
 
 
 > **Important:**  
