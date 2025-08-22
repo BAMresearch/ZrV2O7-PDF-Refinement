@@ -154,7 +154,8 @@ if __name__ == '__main__':
     # (e.g. the result of refining Phase0 at 25 °C in space group P1, replicate (1×1×1)).
     # This refined CIF contains updated atomic positions that broke higher symmetry
     # constraints in order to capture subtle distortions at this temperature.
-    workflow.initialize_from_special_structure()
+    
+    #workflow.initialize_from_special_structure()
 
     # =============================================================================
     #                               FITTING STEPS (FIRST DATASET)
@@ -167,7 +168,7 @@ if __name__ == '__main__':
     i = 0
     workflow.modify_recipe_spacegroup(['Pa-3'])
     workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001))
-    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
     # # ========================== Step 1: Refinement ==============================
     # i = 1
@@ -208,31 +209,39 @@ if __name__ == '__main__':
     # # =============================================================================
     # #                             FINALIZE RESULTS
     # # =============================================================================
-    # results_manager.finalize_results(workflow.cpdf, workflow.fit)
+    results_manager.finalize_results(workflow.cpdf, workflow.fit)
 
     # # =============================================================================
     # #                   CONTINUE FITTING WITH DIFFERENT DATA
     # # =============================================================================
-
-    # config.new_output_directory()
-    # # Update the results manager to use the new output path
-    # workflow.results_manager = ResultsManager(config, analyzer)
+    # =============================== New (or the same) XRD Data ====================================
+    config.mypowderdata = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
     
-    # # Load the new data
-    # r0_2, g0_2, cfg_2 = pdf_manager.generatePDF(
-    #     os.path.join(config.xrd_directory, config.mypowderdata),
-    #     config.composition, qmin=0.0, qmax=config.qmax, myrange=config.myrange, myrstep=config.myrstep
-    # )
+    config.new_output_directory()
+    # Update the results manager to use the new output path
+    workflow.results_manager = ResultsManager(config, analyzer)
     
-    # # Build a fresh cpdf2 that reuses the exact same Structures from `cpdf`
-    # cpdf2 = workflow.rebuild_contribution(
-    #     old_cpdf=workflow.cpdf, r_obs=r0_2, g_obs=g0_2
-    # )
-
-    # # Re-initialize a brand-new FitRecipe from cpdf2:
-    # fit1 = workflow.rebuild_recipe_from_initial(
-    #     fit_old=workflow.fit, cpdf_new=cpdf2, spaceGroups=['Pa-3']
-    # )
+    # Load the new data
+    # CORRECTED THIS FUNCTION CALL
+    r0_2, g0_2, cfg_2 = pdf_manager.generatePDF(
+        data_directory=config.xrd_directory,
+        data_filename=config.mypowderdata,
+        composition=config.composition,
+        qmax=config.qmax,
+        myrange=config.myrange,
+        myrstep=config.myrstep,
+        pdfgetx_config=config.pdfgetx_config
+    )
+    
+    # Build a fresh cpdf2 that reuses the exact same Structures from `cpdf`
+    cpdf2 = workflow.rebuild_contribution(
+        old_cpdf=workflow.cpdf, r_obs=r0_2, g_obs=g0_2
+    )
+    
+    # Re-initialize a brand-new FitRecipe from cpdf2:
+    fit1 = workflow.rebuild_recipe_from_initial(
+        fit_old=workflow.fit, cpdf_new=cpdf2, spaceGroups=['Pa-3']
+    )
 
     # # ========================== FITTING STEPS (SECOND DATASET) =================
     
@@ -313,12 +322,12 @@ simulation_data = {
 # =============================================================================
 
 # Execute the simulation with the organized configuration
-workflow.simulate_pdf_workflow(
-    # Pass general config for shared parameters like composition, q-values, etc.
-    main_config=config,
-    # Pass the dedicated dictionary for simulation-specific settings
-    sim_config=simulation_data
-)
+# workflow.simulate_pdf_workflow(
+#     # Pass general config for shared parameters like composition, q-values, etc.
+#     main_config=config,
+#     # Pass the dedicated dictionary for simulation-specific settings
+#     sim_config=simulation_data
+# )
 
 
 
