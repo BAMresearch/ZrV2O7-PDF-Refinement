@@ -1726,8 +1726,10 @@ class PDFRefinement:
                 except (AttributeError, KeyError):
                     pass
         
-        print("\n[INFO] Completed building new FitRecipe with initial values\n")
         self.fit = fit_new
+        # Enable verbose residual output (SR‐Fit will print residuals each iteration)
+        if fit_new.fithooks:
+            fit_new.fithooks[0].verbose = 2
         return fit_new
     
     def apply_rigid_body_constraints(self, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False):
@@ -2386,5 +2388,6 @@ class PDFRefinement:
         
         print("\nSimulation workflow finished successfully.")
         return cpdf_sim
+
 
 
