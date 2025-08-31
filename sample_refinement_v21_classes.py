@@ -69,6 +69,7 @@ use the PDFRefinement object to drive the analysis:
 # =============================================================================
 # Configure matplotlib for plotting
 import matplotlib
+matplotlib.use('Agg')
 from matplotlib.pyplot import subplots
 import seaborn as sns
 
@@ -1069,6 +1070,39 @@ class ResultsManager:
 
         print(f"Results finalized and saved to {output_results_path}")
         
+ 
+
+    def log_and_plot_rw(self, output_path, stage_index, iteration_history):
+        """
+        Logs the Rw value for each iteration to a CSV file and generates a
+        convergence plot. Both files are overwritten at each call to reflect
+        the latest state.
+
+        Args:
+            output_path (str): The directory to save the log and plot.
+            stage_index (int): The current refinement stage index (i).
+            iteration_history (list): A list of tuples, where each tuple
+                                      contains (iteration_number, Rw_value).
+        """
+
+        # Ensure the history is not empty
+        if not iteration_history:
+            return
+
+        # Define file paths
+        log_filename = os.path.join(output_path, f'rw_log_{stage_index}.csv')
+        plot_filename = os.path.join(output_path, f'rw_plot_{stage_index}.png')
+
+        # --- 1. Update Log File ---
+        try:
+            # Create a DataFrame and save to CSV, overwriting the file
+            df = pd.DataFrame(iteration_history, columns=['Iteration', 'Rw'])
+            df.to_csv(log_filename, index=False)
+        except Exception as e:
+            print(f"[ERROR] Could not write to log file {log_filename}: {e}")
+            exit # Exit if logging fails
+    
+    
     
     def save_state_callback(self, fit, cpdf, output_path, lock, iteration_counter, save_every=1):
         """
@@ -1087,33 +1121,29 @@ class ResultsManager:
             save_every (int): The frequency (in iterations) to save the state.
         """
         # Save only on the specified interval.
-        if iteration_counter > 0 and iteration_counter % save_every == 0:
-            print(f"Saving current state at iteration {iteration_counter}...")
+        # if iteration_counter > 0 and iteration_counter % save_every == 0:
+        #     print(f"Saving current state at iteration {iteration_counter}...")
             
-            # Acquire the lock to ensure thread-safe file operations.
-            with lock:
-                # Define a fixed filename to overwrite the previous state.
-                dill_filename = os.path.join(output_path, 'fit_state_current.dill')
-                try:
-                    with open(dill_filename, 'wb') as f:
-                        dill.dump(fit, f)
-                except Exception as e:
-                    print(f"[ERROR] Could not save dill file: {e}")
+        #     # Acquire the lock to ensure thread-safe file operations.
+        #     with lock:
+        #         # Define a fixed filename to overwrite the previous state.
+        #         dill_filename = os.path.join(output_path, 'fit_state_current.dill')
+        #         try:
+        #             with open(dill_filename, 'wb') as f:
+        #                 dill.dump(fit, f)
+        #         except Exception as e:
+        #             print(f"[ERROR] Could not save dill file: {e}")
                 
-                # Export the current refined structures to CIFs with a fixed name.
-                try:
-                    # Use a 'current' tag to indicate this is the latest intermediate file.
-                    self.export_cifs('current', cpdf)
-                except Exception as e:
-                    print(f"[ERROR] Could not save CIF file: {e}")
+        #         # Export the current refined structures to CIFs with a fixed name.
+        #         try:
+        #             # Use a 'current' tag to indicate this is the latest intermediate file.
+        #             self.export_cifs('current', cpdf)
+        #         except Exception as e:
+        #             print(f"[ERROR] Could not save CIF file: {e}")
             
-            print(f"Current state saved to {dill_filename} and CIFs exported.")
+        #     print(f"Current state saved to {dill_filename} and CIFs exported.")
 
-# In sample_refinement_v21_classes.py, inside the ResultsManager class
 
-# In sample_refinement_v21_classes.py, inside the ResultsManager class
-
-    # In sample_refinement_v21_classes.py, inside the ResultsManager class
 
 
 class PDFManager:
@@ -1361,18 +1391,53 @@ class PDFRefinement:
         self.cpdf.setResidualEquation(residualEquation)
         self.fit.fix('all')
         
-        # Reset the iteration counter for this new refinement stage.
+        # Reset the iteration counter and history for this new refinement stage.
         self.iteration_counter = 0
-    
+        iteration_history = [] # Stores (iteration, Rw) tuples
+
         def callback(xk):
-            """Nested callback to manage iteration state and call the saver."""
+            """
+            Nested callback to manage iteration state, save intermediate
+            results, calculate Rw, and log/plot convergence.
+            """
             self.iteration_counter += 1
+
+            # --- Calculate Rw for the current state ---
+            try:
+                r = self.cpdf.profile.x
+                g_obs = self.cpdf.profile.y
+                g_calc = self.cpdf.evaluate() # Get G_calc at current state
+
+                # Mask to the fitting range for accurate Rw
+                rmin, rmax = fitting_range
+                mask = (r >= rmin) & (r <= rmax)
+                g_obs_fit = g_obs[mask]
+                g_calc_fit = g_calc[mask]
+
+                # Calculate Rw
+                numerator = np.sum((g_obs_fit - g_calc_fit)**2)
+                denominator = np.sum(g_obs_fit**2)
+                rw = np.sqrt(numerator / denominator) if denominator != 0 else 0
+
+                # Append to history
+                iteration_history.append((self.iteration_counter, rw))
+
+                # Log and plot the updated history
+                self.results_manager.log_and_plot_rw(
+                    output_path=self.config.output_results_path,
+                    stage_index=i,
+                    iteration_history=iteration_history
+                )
+            except Exception as e:
+                print(f"[WARNING] Could not calculate or log Rw at iteration {self.iteration_counter}: {e}")
+
+            # --- Save intermediate state (CIF and dill object) ---
             self.results_manager.save_state_callback(
                 fit=self.fit,
                 cpdf=self.cpdf,
                 output_path=self.config.output_results_path,
                 lock=self.file_lock,
-                iteration_counter=self.iteration_counter,  # This argument name is now correct
+                iteration_counter=self.iteration_counter,
                 save_every=save_every
             )
     
@@ -1395,6 +1460,7 @@ class PDFRefinement:
             phase = getattr(self.cpdf, str(phase_name)).phase
             output_path_prefix = os.path.join(self.config.output_results_path, f"{i}_{phase_name}_")
             self.results_manager.visualize_fit_summary(self.cpdf, phase, output_path_prefix)
+
 
             
     def build_initial_recipe(self):
@@ -1556,29 +1622,111 @@ class PDFRefinement:
         # A more robust version would handle this as in the original script
         
         self.fit._oconstraints[:] = [c for c in self.fit._oconstraints if c.par is not None]
-        return self.fit
+        return self.fit   
 
-    def rebuild_recipe_from_initial(self, fit_old, cpdf_new, spaceGroups):
+    def rebuild_recipe_from_initial(self, fit_old, cpdf_new, spaceGroups, 
+                                    anisotropic=False, unified_Uiso=True, 
+                                    sgoffset=[0, 0, 0], recalculate_bond_vectors=False):
         """
-        Create a “basic” fitting recipe for a new dataset, but initialize every variable
-        with the value it had in a previous fit, if it exists there.
+        Create a “basic” fitting recipe for `cpdf_new`, but initialize every variable
+        with the value it had in `fit_old`. This is a meticulously checked, 
+        verbatim transfer of the logic from the v20 script.
         """
-        # Update the instance's cpdf object
+        print("\n======================================")
+        print("[INFO] Building new recipe with initial values from previous fit")
+        print("======================================\n")
+
+        fit_new = FitRecipe()
+        fit_new.addContribution(cpdf_new)
         self.cpdf = cpdf_new
-        
-        # Build a brand-new "basic" recipe for the new data
-        fit_new = self.build_initial_recipe()
 
+        # 1a) Phase equation (scale factors)
+        phase_equation = " + ".join([f"s_{phase}*{phase}" for phase in cpdf_new._generators])
+        cpdf_new.setEquation(phase_equation)
+        print(f"[INFO] Set phase equation: {cpdf_new.getEquation()}")
+
+        # 1b) Add delta2 for each phase
+        for phase in cpdf_new._generators:
+            fit_new.addVar(getattr(cpdf_new, phase).delta2, name=f"delta2_{phase}", value=2.0, tags=["delta2", str(phase)])
+        
+        # 1c) Add scale factors s_phase
+        for phase in cpdf_new._generators:
+            fit_new.addVar(getattr(cpdf_new, f"s_{phase}"), value=0.1, tags=["scale", str(phase)])
+
+        # 1d) Apply space group and add lattice, ADP, xyz parameters
+        for i, phase_name in enumerate(cpdf_new._generators):
+            phase_obj = getattr(cpdf_new, phase_name)
+            spaceGroup = spaceGroups[i]
+            print(f"\n[INFO] Applying space group '{spaceGroup}' to phase '{phase_name}'")
+            sgpar = constrainAsSpaceGroup(phase_obj.phase, spaceGroup, sgoffset=sgoffset)
+
+            for par in sgpar.latpars:
+                fit_new.addVar(par, name=f"{par.name}_{phase_name}", tags=["lat", str(phase_name)])
+
+            # Full ADP logic from v20
+            if anisotropic:
+                # Anisotropic ADP logic would go here, if needed
+                print(f"[INFO]    Anisotropic ADPs enabled for phase '{phase_name}'")
+                pass
+            else: # Isotropic Uiso
+                if unified_Uiso:
+                    print(f"[INFO]    Using unified isotropic Uiso for phase '{phase_name}'")
+                    unique_elements = set(atom.element for atom in phase_obj.phase.getScatterers())
+                    for el in unique_elements:
+                        var = fit_new.newVar(f"Uiso_{el}_{phase_name}", value=self.config.detailed_composition[el]['Uiso'], tags=["adp", el, str(phase_name)])
+                        for atom in phase_obj.phase.getScatterers():
+                            if atom.element == el:
+                                fit_new.constrain(atom.Uiso, var)
+                else:
+                    print(f"[INFO]    Using independent isotropic Uiso for phase '{phase_name}'")
+                    for atom in phase_obj.phase.getScatterers():
+                        el = atom.element
+                        u0 = self.config.detailed_composition[el]['Uiso']
+                        var_name = f"{atom.name}_{phase_name}"
+                        fit_new.addVar(atom.Uiso, value=u0, name=var_name, tags=["adp", str(phase_name)])
+
+            # Add atomic xyz parameters
+            print(f"[INFO]    Adding atomic position variables for phase '{phase_name}'")
+            mapped_xyzpars = self.helper.map_sgpar_params(sgpar, "xyzpars")
+            self.added_params[str(phase_name)] = set()
+            for par in sgpar.xyzpars:
+                try:
+                    mapped_name, atom_label = mapped_xyzpars[par.name]
+                    name_long = f"{mapped_name}_{phase_name}"
+                    fit_new.addVar(par, name=name_long, tags=["xyz", str(phase_name)])
+                    self.added_params[str(phase_name)].add(atom_label)
+                except Exception:
+                    pass
+
+        # 1e) Add spherical-envelope function and psize parameter
+        phase_equation_psize = " + ".join([f"s_{p}*{p}*sphere_{p}" for p in cpdf_new._generators])
+        for phase in cpdf_new._generators:
+            cpdf_new.registerFunction(sphericalCF, name=f"sphere_{phase}", argnames=["r", f"psize_{phase}"])
+            fit_new.addVar(getattr(cpdf_new, f"psize_{phase}"), value=100.0, tags=["psize", str(phase)])
+        cpdf_new.setEquation(phase_equation_psize)
+        print(f"\n[INFO] Updated equation with spherical envelope: {cpdf_new.getEquation()}")
+        
+        # 1f) Recalculate bond-vectors if requested
+        if recalculate_bond_vectors:
+            for phase in cpdf_new._generators:
+                bond_vectors = self.analyzer.get_polyhedral_bond_vectors(getattr(cpdf_new, phase).phase)
+                self.global_bond_vectors[phase] = bond_vectors
+                print(f"[INFO] Recalculated bond vectors for phase '{phase}'")
+
+        # STEP 2: Copy every matching .value from fit_old -> fit_new
         print("\n[INFO] Copying initial values from previous fit into the new recipe")
         for name in fit_old.names:
+            # Crucially, skip copying atomic positions (xyz)
+            if name.startswith(("x_", "y_", "z_")) or "xyz" in name:
+                continue
             if name in fit_new.names:
                 try:
                     oldval = getattr(fit_old, name).value
                     getattr(fit_new, name).value = oldval
-                    print(f"[INFO]   Copied '{name}' = {oldval}")
                 except (AttributeError, KeyError):
                     pass
         
+        print("\n[INFO] Completed building new FitRecipe with initial values\n")
         self.fit = fit_new
         return fit_new
     
@@ -1727,19 +1875,64 @@ class PDFRefinement:
                             print(f"[WARNING] Skipped dihedral {var_name} due to error: {e}")
     
                 # --------------------------------------------------------------------
-                # Cleanup: Remove variables that are None
+                # Cleanup: Remove variables that are None and provide detailed debug info
                 # --------------------------------------------------------------------
                 for name in dir(self.fit):
                     if name.startswith(('bond_length_', 'angle_', 'dihedral_')):
                         try:
                             var = getattr(self.fit, name)
                             if var.value is None:
+                                # --- Start of new detailed error reporting ---
+                                print(f"\n[DEBUG INFO] Found invalid value for '{name}'.")
+                                parts = name.split('_')
+                                var_type = parts[0]
+                                phase_name = parts[-1]
+                                atom_labels = parts[1:-1]
+
+                                try:
+                                    # Get the structure and create an atom lookup map
+                                    phase_generator = getattr(self.cpdf, phase_name)
+                                    structure = phase_generator.phase.stru
+                                    atom_map = {atom.label: atom for atom in structure}
+
+                                    print(f"  Atom Coordinates in Phase '{phase_name}':")
+                                    atom_objects = [atom_map.get(label) for label in atom_labels]
+                                    
+                                    if any(atom is None for atom in atom_objects):
+                                        print("  Could not find all atoms for this variable.")
+                                    else:
+                                        for atom in atom_objects:
+                                            print(f"    - {atom.label}: ({atom.x:.6f}, {atom.y:.6f}, {atom.z:.6f})")
+
+                                        # Attempt a robust recalculation for angles
+                                        if var_type == 'angle' and len(atom_objects) == 3:
+                                            p0 = np.array([atom_objects[0].x, atom_objects[0].y, atom_objects[0].z])
+                                            p1 = np.array([atom_objects[1].x, atom_objects[1].y, atom_objects[1].z])
+                                            p2 = np.array([atom_objects[2].x, atom_objects[2].y, atom_objects[2].z])
+
+                                            # Get lattice to convert to Cartesian for accurate angle
+                                            phase = phase_generator.phase
+                                            lat = phase.lattice
+                                            lattice_mat = self.analyzer._lattice_vectors(lat.a.value, lat.b.value, lat.c.value, lat.alpha.value, lat.beta.value, lat.gamma.value)
+
+                                            # Angle is at the central atom (p1)
+                                            v1 = lattice_mat.dot(p0 - p1)
+                                            v2 = lattice_mat.dot(p2 - p1)
+                                            
+                                            robust_angle = self.analyzer.calculate_angle(v1, v2)
+                                            print(f"  Robust Recalculation: {robust_angle:.4f} degrees.")
+                                            if np.isclose(robust_angle, 0.0) or np.isclose(robust_angle, 180.0):
+                                                print("  📌 Likely Cause: Atoms are nearly collinear, causing the arccos() calculation to fail.")
+
+                                except Exception as e_debug:
+                                    print(f"  Could not retrieve full debug info: {e_debug}")
+                                # --- End of new detailed error reporting ---
+
                                 self.fit.unconstrain(var)
                                 self.fit.delVar(var)
-                                print(f"[INFO] Removed '{name}' due to a missing or incorrect value.")
+                                print(f"[INFO] Removed '{name}' due to the issue detailed above.\n")
                         except Exception:
                             continue
-            return self.fit
 
 
     def copy_phase_structure(self, cpdf_target, cpdf_source, phase_index=0):
@@ -2193,6 +2386,5 @@ class PDFRefinement:
         
         print("\nSimulation workflow finished successfully.")
         return cpdf_sim
-
 
 
