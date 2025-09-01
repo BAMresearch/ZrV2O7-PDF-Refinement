@@ -1353,6 +1353,8 @@ class RefinementHelper:
             mapped_params[parname] = (mapped_label, atom_name.upper())
 
         return mapped_params
+    
+
 
 
 
@@ -1621,7 +1623,7 @@ class PDFRefinement:
         for i, phase in enumerate(self.cpdf._generators):
             try:
                 sgpar = constrainAsSpaceGroup(getattr(self.cpdf, phase).phase, spacegroup_list[i])
-                sgpar._clearConstraints() # Crucial step from original script
+                sgpar._clearConstraints() # Crucial step 
                 
                 mapped_xyzpars = self.helper.map_sgpar_params(sgpar, 'xyzpars')
                 for par in sgpar.xyzpars:
@@ -1637,7 +1639,7 @@ class PDFRefinement:
             except Exception as e:
                 print(f"Error applying space group to phase {phase}: {e}")
 
-        # Step 7: Enforce Pseudo-Cubic Constraints for Lattice Parameters and anisotropic ADPs
+        # Step 6: Enforce Pseudo-Cubic Constraints for Lattice Parameters and anisotropic ADPs
         old_lattice_vars = {}
         for name in self.fit.names:
             if name.startswith(('a_', 'b_', 'c_', 'alpha_', 'beta_', 'gamma_')):
@@ -1726,6 +1728,18 @@ class PDFRefinement:
         print("[INFO] Building a new basic refinement recipe with initial values from previous fit")
         print("======================================\n")
 
+ # --- DIAGNOSTIC PRINT BLOCK ---
+        print("\n--- DEBUGGING ADP SETTINGS ---")
+        print(f"Received 'anisotropic' parameter with value: {anisotropic} (Type: {type(anisotropic)})")
+        print(f"Received 'unified_Uiso' parameter with value: {unified_Uiso} (Type: {type(unified_Uiso)})")
+        print("--- END DEBUG ---\n")
+        
+        """
+        Create a “basic” fitting recipe for `cpdf_new`, but initialize every variable
+        # ... (rest of the docstring) ...
+        """
+        print("\n======================================")
+
         # STEP 1: Build the brand‐new “basic” recipe exactly as refinement_basic() does
         fit_new = FitRecipe()
         fit_new.addContribution(cpdf_new)
@@ -1767,11 +1781,14 @@ class PDFRefinement:
         for i, phase in enumerate(cpdf_new._generators):
             spaceGroup = spaceGroups[i]
             print(f"\n[INFO] Applying space group '{spaceGroup}' to phase '{phase}'")
+
             sgpar = constrainAsSpaceGroup(
                 getattr(cpdf_new, phase).phase,
                 spaceGroup,
                 sgoffset=sgoffset
             )
+            
+            #sgpar = constrainAsSpaceGroup(getattr(self.cpdf, phase).phase, spaceGroup, sgoffset=self.config.sgoffset)
 
             # — add lattice parameters (latpars)
             for par in sgpar.latpars:
@@ -1808,15 +1825,6 @@ class PDFRefinement:
                         lb=0.0, ub=0.1, scaled=True, sig=0.0005
                     )
             else:
-                # isotropic Uiso handling
-                mapped_adppars = self.helper.map_sgpar_params(sgpar, "adppars")
-                added_adps = set()
-                for par in sgpar.adppars:
-                    try:
-                        atom_label = mapped_adppars[par.name][1]
-                        added_adps.add(atom_label)
-                    except Exception:
-                        pass
 
                 if unified_Uiso:
                     getattr(cpdf_new, phase).stru.anisotropy = False
@@ -1829,6 +1837,7 @@ class PDFRefinement:
                             value=u0,
                             tags=["adp", el, str(phase)]
                         )
+                        print(var)
                         for atom in getattr(cpdf_new, phase).phase.getScatterers():
                             if atom.element == el:
                                 fit_new.constrain(atom.Uiso, var)
@@ -1837,6 +1846,18 @@ class PDFRefinement:
                                     lb=0.0, ub=0.1, scaled=True, sig=0.0005
                                 )
                 else:
+                    
+#                   isotropic Uiso handling
+                    mapped_adppars = self.helper.map_sgpar_params(sgpar, "adppars")
+                    added_adps = set()
+                    for par in sgpar.adppars:
+                        try:
+                            atom_label = mapped_adppars[par.name][1]
+                            print(atom_label)
+                            added_adps.add(atom_label)
+                            print('Uiso,', atom_label)
+                        except Exception:
+                            pass
                     getattr(cpdf_new, phase).stru.anisotropy = False
                     print(f"[INFO]   Using independent isotropic Uiso for phase '{phase}'")
                     for atom in getattr(cpdf_new, phase).phase.getScatterers():
@@ -1855,7 +1876,7 @@ class PDFRefinement:
                                 atom.Uiso,
                                 lb=0.0, ub=0.1, scaled=True, sig=0.0005
                             )
-
+  
             # — add atomic xyz parameters (xyzpars)
             mapped_xyzpars = self.helper.map_sgpar_params(sgpar, "xyzpars")
             self.added_params[str(phase)] = set()
@@ -1924,14 +1945,14 @@ class PDFRefinement:
 
         print("\n[INFO] Completed building new FitRecipe with initial values\n")
         
-        self.fit = fit_new
+        
 
         # Enable verbose residual output (SR‐Fit will print residuals each iteration)
         if fit_new.fithooks:
             fit_new.fithooks[0].verbose = 2
         
 
-
+        self.fit = fit_new
         return fit_new
 
     
