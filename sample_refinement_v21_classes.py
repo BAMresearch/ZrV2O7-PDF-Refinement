@@ -1623,114 +1623,266 @@ class PDFRefinement:
         
         self.fit._oconstraints[:] = [c for c in self.fit._oconstraints if c.par is not None]
         return self.fit   
-
-    def rebuild_recipe_from_initial(self, fit_old, cpdf_new, spaceGroups, 
-                                    anisotropic=False, unified_Uiso=True, 
-                                    sgoffset=[0, 0, 0], recalculate_bond_vectors=False):
+    
+    def rebuild_recipe_from_initial(self,
+            fit_old,
+            cpdf_new,
+            spaceGroups,
+            anisotropic,
+            unified_Uiso,
+            sgoffset=[0, 0, 0],
+            recalculate_bond_vectors=False
+        ):
         """
         Create a “basic” fitting recipe for `cpdf_new`, but initialize every variable
-        with the value it had in `fit_old`. This is a meticulously checked, 
-        verbatim transfer of the logic from the v20 script.
+        with the value it had in `fit_old`, if it exists there.
+
+        Parameters:
+        -----------
+        fit_old : FitRecipe
+            The FitRecipe object from the previous round of refinement. Any variable
+            whose name appears in both `fit_old` and the new recipe will have its
+            .value copied from `fit_old` into the new FitRecipe.
+        cpdf_new : PDFContribution
+            The PDFContribution object for the “new” data (e.g. cpdf2). This will be
+            added to the new FitRecipe before any variables are created.
+        spaceGroups : list of str
+            A list of space‐group strings, one per phase in `cpdf_new._generators`.
+        anisotropic : bool
+            If True, enable anisotropic ADPs for every phase. Otherwise, add isotropic
+            Uiso variables (either unified by element or independent, according to
+            `unified_Uiso`).
+        unified_Uiso : bool
+            If True (and `anisotropic=False`), create one shared Uiso per element per phase
+            (e.g. Uiso_O_phase, Uiso_V_phase, Uiso_Zr_phase). If False, create an independent
+            Uiso variable for each atom in each phase.
+        sgoffset : list of 3 floats, optional
+            Passed directly to constrainAsSpaceGroup(...). Default is [0, 0, 0].
+        recalculate_bond_vectors : bool, optional
+            If True, recalculate global bond‐vector dictionaries after building all variables
+            (so that rigid‐body constraints can use up‐to‐date bond vectors). If False (default),
+            skip this step.
+
+        Returns:
+        --------
+        fit_new : FitRecipe
+            A brand‐new FitRecipe built exactly as in `refinement_basic()`, but with:
+            1) the same variables (scale factors, Δ2, lattice, ADPs, xyz, psize) created on
+               `cpdf_new` that `refinement_basic()` would create, and
+            2) every variable that also existed in `fit_old` having its `.value` initialized
+               to the same value it had in `fit_old`.
         """
         print("\n======================================")
-        print("[INFO] Building new recipe with initial values from previous fit")
+        print("[INFO] Building a new basic refinement recipe with initial values from previous fit")
         print("======================================\n")
 
+        # STEP 1: Build the brand‐new “basic” recipe exactly as refinement_basic() does
         fit_new = FitRecipe()
         fit_new.addContribution(cpdf_new)
-        self.cpdf = cpdf_new
+        print("[INFO] Added PDFContribution to new FitRecipe")
 
         # 1a) Phase equation (scale factors)
-        phase_equation = " + ".join([f"s_{phase}*{phase}" for phase in cpdf_new._generators])
-        cpdf_new.setEquation(phase_equation)
+        phase_equation = ""
+        for phase in cpdf_new._generators:
+            phase_equation += f"s_{phase}*{phase} + "
+        cpdf_new.setEquation(phase_equation[:-3])
         print(f"[INFO] Set phase equation: {cpdf_new.getEquation()}")
 
-        # 1b) Add delta2 for each phase
+        # 1b) Add Δ2 for each phase independently
         for phase in cpdf_new._generators:
-            fit_new.addVar(getattr(cpdf_new, phase).delta2, name=f"delta2_{phase}", value=2.0, tags=["delta2", str(phase)])
-        
+            fit_new.addVar(
+                getattr(cpdf_new, phase).delta2,
+                name=f"delta2_{phase}",
+                value=2.0,
+                tags=["delta2", str(phase), f"delta2_{phase}", "delta"]
+            )
+            fit_new.restrain(
+                getattr(cpdf_new, phase).delta2,
+                lb=0.0, ub=5.0, scaled=True, sig=0.005
+            )
+
         # 1c) Add scale factors s_phase
         for phase in cpdf_new._generators:
-            fit_new.addVar(getattr(cpdf_new, f"s_{phase}"), value=0.1, tags=["scale", str(phase)])
+            fit_new.addVar(
+                getattr(cpdf_new, f"s_{phase}"),
+                value=0.1,
+                tags=["scale", str(phase), f"s_{phase}"]
+            )
+            fit_new.restrain(
+                getattr(cpdf_new, f"s_{phase}"),
+                lb=0.0, scaled=True, sig=0.0005
+            )
 
-        # 1d) Apply space group and add lattice, ADP, xyz parameters
-        for i, phase_name in enumerate(cpdf_new._generators):
-            phase_obj = getattr(cpdf_new, phase_name)
+        # 1d) For each phase, apply the provided space group and add lattice, ADP, xyz
+        for i, phase in enumerate(cpdf_new._generators):
             spaceGroup = spaceGroups[i]
-            print(f"\n[INFO] Applying space group '{spaceGroup}' to phase '{phase_name}'")
-            sgpar = constrainAsSpaceGroup(phase_obj.phase, spaceGroup, sgoffset=sgoffset)
+            print(f"\n[INFO] Applying space group '{spaceGroup}' to phase '{phase}'")
+            sgpar = constrainAsSpaceGroup(
+                getattr(cpdf_new, phase).phase,
+                spaceGroup,
+                sgoffset=sgoffset
+            )
 
+            # — add lattice parameters (latpars)
             for par in sgpar.latpars:
-                fit_new.addVar(par, name=f"{par.name}_{phase_name}", tags=["lat", str(phase_name)])
+                fit_new.addVar(
+                    par,
+                    value=par.value,
+                    name=f"{par.name}_{phase}",
+                    fixed=False,
+                    tags=["lat", str(phase), f"lat_{phase}"]
+                )
 
-            # Full ADP logic from v20
+            # — add ADPs
             if anisotropic:
-                # Anisotropic ADP logic would go here, if needed
-                print(f"[INFO]    Anisotropic ADPs enabled for phase '{phase_name}'")
-                pass
-            else: # Isotropic Uiso
+                getattr(cpdf_new, phase).stru.anisotropy = True
+                print(f"[INFO]   Enabling anisotropic ADPs for phase '{phase}'")
+                for par in sgpar.adppars:
+                    atom = par.par.obj
+                    atom_label  = atom.label
+                    atom_symbol = atom.element
+                    # pull Uiso directly from detailed_composition
+                    u0 = self.config.detailed_composition[atom_symbol]['Uiso']
+                    name = f"{par.name}_{atom_label}_{phase}"
+                    tags = [
+                        "adp",
+                        f"adp_{atom_label}",
+                        f"adp_{atom_symbol}_{phase}",
+                        f"adp_{phase}",
+                        f"adp_{atom_symbol}",
+                        str(phase)
+                    ]
+                    fit_new.addVar(par, value=u0, name=name, tags=tags)
+                    fit_new.restrain(
+                        par,
+                        lb=0.0, ub=0.1, scaled=True, sig=0.0005
+                    )
+            else:
+                # isotropic Uiso handling
+                mapped_adppars = self.helper.map_sgpar_params(sgpar, "adppars")
+                added_adps = set()
+                for par in sgpar.adppars:
+                    try:
+                        atom_label = mapped_adppars[par.name][1]
+                        added_adps.add(atom_label)
+                    except Exception:
+                        pass
+
                 if unified_Uiso:
-                    print(f"[INFO]    Using unified isotropic Uiso for phase '{phase_name}'")
-                    unique_elements = set(atom.element for atom in phase_obj.phase.getScatterers())
-                    for el in unique_elements:
-                        var = fit_new.newVar(f"Uiso_{el}_{phase_name}", value=self.config.detailed_composition[el]['Uiso'], tags=["adp", el, str(phase_name)])
-                        for atom in phase_obj.phase.getScatterers():
+                    getattr(cpdf_new, phase).stru.anisotropy = False
+                    print(f"[INFO]   Using unified isotropic Uiso for phase '{phase}'")
+                    # one Uiso per element
+                    for el, info in self.config.detailed_composition.items():
+                        u0 = info['Uiso']
+                        var = fit_new.newVar(
+                            f"Uiso_{el}_{phase}",
+                            value=u0,
+                            tags=["adp", el, str(phase)]
+                        )
+                        for atom in getattr(cpdf_new, phase).phase.getScatterers():
                             if atom.element == el:
                                 fit_new.constrain(atom.Uiso, var)
+                                fit_new.restrain(
+                                    atom.Uiso,
+                                    lb=0.0, ub=0.1, scaled=True, sig=0.0005
+                                )
                 else:
-                    print(f"[INFO]    Using independent isotropic Uiso for phase '{phase_name}'")
-                    for atom in phase_obj.phase.getScatterers():
-                        el = atom.element
-                        u0 = self.config.detailed_composition[el]['Uiso']
-                        var_name = f"{atom.name}_{phase_name}"
-                        fit_new.addVar(atom.Uiso, value=u0, name=var_name, tags=["adp", str(phase_name)])
+                    getattr(cpdf_new, phase).stru.anisotropy = False
+                    print(f"[INFO]   Using independent isotropic Uiso for phase '{phase}'")
+                    for atom in getattr(cpdf_new, phase).phase.getScatterers():
+                        if atom.name.upper() in added_adps:
+                            el = atom.element
+                            u0 = self.config.detailed_composition[el]['Uiso']
+                            var_name = f"{atom.name}_{phase}"
+                            fit_new.addVar(
+                                atom.Uiso,
+                                value=u0,
+                                name=var_name,
+                                fixed=False,
+                                tags=["adp", str(phase), f"adp_{phase}", f"adp_{el}"]
+                            )
+                            fit_new.restrain(
+                                atom.Uiso,
+                                lb=0.0, ub=0.1, scaled=True, sig=0.0005
+                            )
 
-            # Add atomic xyz parameters
-            print(f"[INFO]    Adding atomic position variables for phase '{phase_name}'")
+            # — add atomic xyz parameters (xyzpars)
             mapped_xyzpars = self.helper.map_sgpar_params(sgpar, "xyzpars")
-            self.added_params[str(phase_name)] = set()
+            self.added_params[str(phase)] = set()
+            print(f"[INFO]   Adding atomic position variables (xyzpars) for phase '{phase}'")
             for par in sgpar.xyzpars:
                 try:
-                    mapped_name, atom_label = mapped_xyzpars[par.name]
-                    name_long = f"{mapped_name}_{phase_name}"
-                    fit_new.addVar(par, name=name_long, tags=["xyz", str(phase_name)])
-                    self.added_params[str(phase_name)].add(atom_label)
+                    atom_symbol = par.par.obj.element
+                    mapped_name = mapped_xyzpars[par.name][0]
+                    atom_label  = mapped_xyzpars[par.name][1]
+                    name_long   = f"{mapped_name}_{phase}"
+                    tags = [
+                        "xyz",
+                        f"xyz_{atom_symbol}",
+                        f"xyz_{atom_symbol}_{phase}",
+                        f"xyz_{phase}",
+                        str(phase)
+                    ]
+                    fit_new.addVar(par, name=name_long, tags=tags)
+                    self.added_params[str(phase)].add(atom_label)
                 except Exception:
                     pass
 
-        # 1e) Add spherical-envelope function and psize parameter
-        phase_equation_psize = " + ".join([f"s_{p}*{p}*sphere_{p}" for p in cpdf_new._generators])
+        # 1e) Register spherical‐envelope (“psize_”) for each phase
+        phase_equation = ""
         for phase in cpdf_new._generators:
-            cpdf_new.registerFunction(sphericalCF, name=f"sphere_{phase}", argnames=["r", f"psize_{phase}"])
-            fit_new.addVar(getattr(cpdf_new, f"psize_{phase}"), value=100.0, tags=["psize", str(phase)])
-        cpdf_new.setEquation(phase_equation_psize)
-        print(f"\n[INFO] Updated equation with spherical envelope: {cpdf_new.getEquation()}")
-        
-        # 1f) Recalculate bond-vectors if requested
+            cpdf_new.registerFunction(
+                sphericalCF,
+                name=f"sphere_{phase}",
+                argnames=["r", f"psize_{phase}"]
+            )
+            phase_equation += f"s_{phase}*{phase}*sphere_{phase} + "
+        cpdf_new.setEquation(phase_equation[:-3])
+        print(f"\n[INFO] Updated phase equation with spherical envelope: {cpdf_new.getEquation()}")
+
+        for phase in cpdf_new._generators:
+            fit_new.addVar(
+                getattr(cpdf_new, f"psize_{phase}"),
+                value=100.0,
+                fixed=False,
+                tags=["psize", f"psize_{phase}", str(phase)]
+            )
+            fit_new.restrain(
+                getattr(cpdf_new, f"psize_{phase}"),
+                lb=0.0, scaled=True, sig=0.1
+            )
+
+        # 1f) Recalculate bond‐vectors for each phase if requested
         if recalculate_bond_vectors:
+            global global_bond_vectors
             for phase in cpdf_new._generators:
                 bond_vectors = self.analyzer.get_polyhedral_bond_vectors(getattr(cpdf_new, phase).phase)
                 self.global_bond_vectors[phase] = bond_vectors
                 print(f"[INFO] Recalculated bond vectors for phase '{phase}'")
 
-        # STEP 2: Copy every matching .value from fit_old -> fit_new
+        # STEP 2: Copy every matching .value from fit_old → fit_new (excluding xyz)
         print("\n[INFO] Copying initial values from previous fit into the new recipe")
         for name in fit_old.names:
-            # Crucially, skip copying atomic positions (xyz)
             if name.startswith(("x_", "y_", "z_")) or "xyz" in name:
                 continue
             if name in fit_new.names:
                 try:
                     oldval = getattr(fit_old, name).value
                     getattr(fit_new, name).value = oldval
-                except (AttributeError, KeyError):
+                    print(f"[INFO]   Copied '{name}' = {oldval}")
+                except Exception:
                     pass
-        
-        self.fit = fit_new
+
+        print("\n[INFO] Completed building new FitRecipe with initial values\n")
+
         # Enable verbose residual output (SR‐Fit will print residuals each iteration)
         if fit_new.fithooks:
             fit_new.fithooks[0].verbose = 2
+        
+        self.fit = fit_new
+
         return fit_new
+
     
     def apply_rigid_body_constraints(self, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False):
             """
