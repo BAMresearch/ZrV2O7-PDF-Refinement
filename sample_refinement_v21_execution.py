@@ -31,11 +31,11 @@ Simulation: Finally, the script runs a simulation workflow. It takes a previousl
 """
 
 #=============================================================================
-    #                         PROJECT SETUP & INITIALIZATION
-    # =============================================================================
+#                         PROJECT SETUP & INITIALIZATION
+# =============================================================================
     
 project_data = {
-'project_name': 'ZirconiumVanadate25Cto25C_TESTING/',
+'project_name': 'ZirconiumVanadate25Cto25C_TESTING_OOP/',
 'xrd_directory': 'data/',
 'cif_directory': 'CIFs/',
 'fit_directory': 'fits/',
@@ -64,6 +64,26 @@ project_data = {
 'special_structure': {
     'file_path': 'fits/ZirconiumVanadate25Cperiodic/18032025_071408/Phase0_6.cif',
     'phase_index_to_update': 0}  # 0 for Phase0, 1 for Phase1, etc.
+}
+
+# =============================================================================
+#                 SIMULATION WORKFLOW CONFIGURATION
+# =============================================================================
+simulation_data = {
+    'cif_directory': 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/',
+    'ciffile': {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]},
+    'powder_data_file': 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
+    'output_path': 'resultsSimulations/25C_Phase0_6',
+    'optimized_params': {
+        'Phase0': {'s': 4.92399836e-01, 'psize': 2.66658626e+02, 'delta2': 2.53696631e+00}
+    },
+    'default_Uiso': {
+        'Zr': 5.79086780e-04,
+        'V': 3.21503909e-03,
+        'O': 7.21519003e-03
+    },
+    'fitting_range': [1.5, 27],
+    'csv_filename': 'sim_vs_obs.csv'
 }
 
 
@@ -167,53 +187,53 @@ if __name__ == '__main__':
     # ========================== Step 0: Initial Fit =============================
     i = 0
     workflow.modify_recipe_spacegroup(['Pa-3'])
-    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001))
-    #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 1: Refinement ==============================
-    # i = 1
-    # workflow.modify_recipe_spacegroup(['Pa-3'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001))
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 1: Refinement ==============================
+    i = 1
+    workflow.modify_recipe_spacegroup(['Pa-3'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 2: Adjust Symmetry =========================
-    # i = 2
-    # workflow.modify_recipe_spacegroup(['P213'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001))
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 2: Adjust Symmetry =========================
+    i = 2
+    workflow.modify_recipe_spacegroup(['P213'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 3: Adjust Symmetry =========================
-    # i = 3
-    # workflow.modify_recipe_spacegroup(['P23'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001))
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 3: Adjust Symmetry =========================
+    i = 3
+    workflow.modify_recipe_spacegroup(['P23'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 4: Further Refinement ======================
-    # i = 4
-    # workflow.modify_recipe_spacegroup(['P23'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001))
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 4: Further Refinement ======================
+    i = 4
+    workflow.modify_recipe_spacegroup(['P23'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 5: Lowest Symmetry =========================
-    # i = 5
-    # workflow.modify_recipe_spacegroup(['P1'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001))
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 5: Lowest Symmetry =========================
+    i = 5
+    workflow.modify_recipe_spacegroup(['P1'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 6: Lowest Symmetry =========================
-    # i = 6
-    # workflow.modify_recipe_spacegroup(['P1'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001))
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 6: Lowest Symmetry =========================
+    i = 6
+    workflow.modify_recipe_spacegroup(['P1'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
     
-    # # =============================================================================
-    # #                             FINALIZE RESULTS
-    # # =============================================================================
+    # =============================================================================
+    #                            FINALIZE RESULTS
+    # =============================================================================
     results_manager.finalize_results(workflow.cpdf, workflow.fit)
 
-    # # =============================================================================
-    # #                   CONTINUE FITTING WITH DIFFERENT DATA
-    # # =============================================================================
+    # =============================================================================
+    #                   CONTINUE FITTING WITH DIFFERENT DATA
+    # =============================================================================
     # =============================== New (or the same) XRD Data ====================================
     config.mypowderdata = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
     
@@ -222,7 +242,6 @@ if __name__ == '__main__':
     workflow.results_manager = ResultsManager(config, analyzer)
     
     # Load the new data
-    # CORRECTED THIS FUNCTION CALL
     r0_2, g0_2, cfg_2 = pdf_manager.generatePDF(
         data_directory=config.xrd_directory,
         data_filename=config.mypowderdata,
@@ -240,83 +259,66 @@ if __name__ == '__main__':
     
     # Re-initialize a brand-new FitRecipe from cpdf2:
     fit1 = workflow.rebuild_recipe_from_initial(
-        fit_old=workflow.fit, cpdf_new=cpdf2, spaceGroups=['Pa-3']
-    )
+        fit_old=workflow.fit, cpdf_new=cpdf2, spaceGroups=['Pa-3'], anisotropic=False, unified_Uiso=True, 
+        sgoffset=[0, 0, 0], recalculate_bond_vectors=True)
 
-    # # ========================== FITTING STEPS (SECOND DATASET) =================
+    # ========================== FITTING STEPS (SECOND DATASET) =================
     
-    # fitting_range = [27, 60] # New fitting range
+    fitting_range = [1.5, 27] # New fitting range
+    fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
     
-    # # ========================== Step 0: Initial Fit (new data) ==================
-    # i = 0
-    # workflow.modify_recipe_spacegroup(['Pa-3'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=True)
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 0: Initial Fit (new data) ==================
+    i = 0
+    workflow.modify_recipe_spacegroup(['Pa-3'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 1: Refinement (new data) ====================
-    # i = 1
-    # workflow.modify_recipe_spacegroup(['Pa-3'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=True)
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 1: Refinement (new data) ====================
+    i = 1
+    workflow.modify_recipe_spacegroup(['Pa-3'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 2: Adjust Symmetry (new data) ===============
-    # i = 2
-    # workflow.modify_recipe_spacegroup(['P213'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=True)
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 2: Adjust Symmetry (new data) ===============
+    i = 2
+    workflow.modify_recipe_spacegroup(['P213'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=False)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
     
-    # # ========================== Step 3: Adjust Symmetry (new data) ===============
-    # i = 3
-    # workflow.modify_recipe_spacegroup(['P23'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=True)
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 3: Adjust Symmetry (new data) ===============
+    i = 3
+    workflow.modify_recipe_spacegroup(['P23'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=True)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 4: Further Refinement (new data) ===========
-    # i = 4
-    # workflow.modify_recipe_spacegroup(['P23'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=True)
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 4: Further Refinement (new data) ===========
+    i = 4
+    workflow.modify_recipe_spacegroup(['P23'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=True)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 5: Lowest Symmetry (new data) ==============
-    # i = 5
-    # workflow.modify_recipe_spacegroup(['P1'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=True)
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 5: Lowest Symmetry (new data) ==============
+    i = 5
+    workflow.modify_recipe_spacegroup(['P1'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=True)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # # ========================== Step 6: Lowest Symmetry (new data) ==============
-    # i = 6
-    # workflow.modify_recipe_spacegroup(['P1'])
-    # workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=True)
-    # #workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
+    # ========================== Step 6: Lowest Symmetry (new data) ==============
+    i = 6
+    workflow.modify_recipe_spacegroup(['P1'])
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=True)
+    workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
     
-    # # =============================================================================
-    # #                             FINALIZE RESULTS (new data)
-    # # =============================================================================
-    # workflow.results_manager.finalize_results(workflow.cpdf, workflow.fit)
+    # =============================================================================
+    #                             FINALIZE RESULTS (new data)
+    # =============================================================================
+    workflow.results_manager.finalize_results(workflow.cpdf, workflow.fit)
     
     #=============================================================================
     # Run simulation workflow with specific parameters
     #=============================================================================
     
-# =============================================================================
-#                 SIMULATION WORKFLOW CONFIGURATION
-# =============================================================================
-simulation_data = {
-    'cif_directory': 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/',
-    'ciffile': {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]},
-    'powder_data_file': 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
-    'output_path': 'resultsSimulations/25C_Phase0_6',
-    'optimized_params': {
-        'Phase0': {'s': 4.92399836e-01, 'psize': 2.66658626e+02, 'delta2': 2.53696631e+00}
-    },
-    'default_Uiso': {
-        'Zr': 5.79086780e-04,
-        'V': 3.21503909e-03,
-        'O': 7.21519003e-03
-    },
-    'fitting_range': [1.5, 27],
-    'csv_filename': 'sim_vs_obs.csv'
-}
+
 # =============================================================================
 #                       RUN SIMULATION WORKFLOW
 # =============================================================================
