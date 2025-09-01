@@ -1510,19 +1510,32 @@ class PDFRefinement:
                 print('Adding anisotropic displacement parameters.')
                 for par in sgpar.adppars:
                     atom = par.par.obj
-                    u0 = self.config.detailed_composition.get(atom.element, {}).get('Uiso', 0.01)
-                    name = f"{par.name}_{atom.label}_{phase}"
-                    tags = ['adp', f"adp_{atom.label}", f"adp_{atom.element}_{phase}", f"adp_{phase}", f"adp_{atom.element}", str(phase)]
+                    atom_label = atom.label
+                    atom_symbol = atom.element
+                    # take Uiso initial from detailed_composition
+                    u0 = self.config.detailed_composition.get(atom_symbol, {}).get('Uiso', 0.01)
+                    name = f"{par.name}_{atom_label}_{phase}"
+                    tags = ['adp', f"adp_{atom_label}", f"adp_{atom_symbol}_{phase}", f"adp_{phase}", f"adp_{atom_symbol}", str(phase)]
                     self.fit.addVar(par, value=u0, name=name, tags=tags)
                     self.fit.restrain(par, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
             else:
                 mapped_adppars = self.helper.map_sgpar_params(sgpar, 'adppars')
-                added_adps = {mapped_adppars[p_name][1] for p_name in mapped_adppars}
+                added_adps = set()
+                for par in sgpar.adppars:
+                    try:
+                        atom_symbol = par.par.obj.element
+                        parameter_name = par.name
+                        atom_label = mapped_adppars[parameter_name][1]
+                        added_adps.add(atom_label)
+                    except Exception:
+                        pass
                 if self.config.unified_Uiso:
                     print('Adding isotropic displacement parameters as unified values.')
                     getattr(self.cpdf, phase).stru.anisotropy = False
+                    # one Uiso per element
                     for el, info in self.config.detailed_composition.items():
-                        var = self.fit.newVar(f"Uiso_{el}_{phase}", value=info['Uiso'], tags=['adp', el, str(phase)])
+                        u0 = info['Uiso']
+                        var = self.fit.newVar(f"Uiso_{el}_{phase}", value=u0, tags=['adp', el, str(phase)])
                         for atom in getattr(self.cpdf, phase).phase.getScatterers():
                             if atom.element == el:
                                 self.fit.constrain(atom.Uiso, var)
@@ -1531,11 +1544,17 @@ class PDFRefinement:
                     print('Adding isotropic displacement parameters as independent values.')
                     getattr(self.cpdf, phase).stru.anisotropy = False
                     for atom in getattr(self.cpdf, phase).phase.getScatterers():
+                        el = atom.element
                         if atom.name.upper() in added_adps:
-                            u0 = self.config.detailed_composition.get(atom.element, {}).get('Uiso', 0.01)
-                            self.fit.addVar(atom.Uiso, value=u0, name=f"{atom.name}_{phase}", fixed=False,
-                                            tags=['adp', str(phase), f"adp_{phase}", f"adp_{atom.element}"])
+                            u0 = self.config.detailed_composition.get(el, {}).get('Uiso', 0.01)
+                            self.fit.addVar(atom.Uiso,
+                                       value=u0,
+                                       name=f"{atom.name}_{phase}",
+                                       fixed=False,
+                                       tags=['adp', str(phase), f"adp_{phase}", f"adp_{el}"])
                             self.fit.restrain(atom.Uiso, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
+
+
 
             #------------------ 8 ------------------#
             # atom positions XYZ
@@ -1618,18 +1637,49 @@ class PDFRefinement:
             except Exception as e:
                 print(f"Error applying space group to phase {phase}: {e}")
 
-        # Step 7: Re-apply lattice constraints (simplified for this context)
-        # A more robust version would handle this as in the original script
-        
+        # Step 7: Enforce Pseudo-Cubic Constraints for Lattice Parameters and anisotropic ADPs
+        old_lattice_vars = {}
+        for name in self.fit.names:
+            if name.startswith(('a_', 'b_', 'c_', 'alpha_', 'beta_', 'gamma_')):
+                var_value = getattr(self.fit, name).value
+                old_lattice_vars[name] = var_value
+    
+        for name in old_lattice_vars.keys():
+            try:
+                self.fit.unconstrain(getattr(self.fit, name))
+                # fit.clearConstraints(getattr(fit, name))
+                # fit.clearRestraints(getattr(fit, name))
+                self.fit.delVar(getattr(self.fit, name))
+                print(f"{name}: old variable deleted")
+            except Exception:
+                pass
+    
+        for phase in self.cpdf._generators:
+            spaceGroup = str(list(self.config.ciffile.values())[0][0])
+            sgpar = constrainAsSpaceGroup(getattr(self.cpdf, phase).phase, spaceGroup, sgoffset=self.config.sgoffset)
+            for par in sgpar.latpars:
+                name = par.name + '_' + str(phase)
+                try:
+                    old_value = old_lattice_vars[name]
+                    self.fit.addVar(par, value=old_value, name=name, fixed=False, tags=['lat', str(phase), 'lat_' + str(phase)])
+                    print(f"Constrained {name} at {old_value}.")
+                except Exception:
+                    pass
+    
+        # strip out any constraint whose .par is None
         self.fit._oconstraints[:] = [c for c in self.fit._oconstraints if c.par is not None]
+
+
+
+
         return self.fit   
     
     def rebuild_recipe_from_initial(self,
             fit_old,
             cpdf_new,
             spaceGroups,
-            anisotropic,
-            unified_Uiso,
+            anisotropic = False,
+            unified_Uiso = True,
             sgoffset=[0, 0, 0],
             recalculate_bond_vectors=False
         ):
@@ -1854,7 +1904,6 @@ class PDFRefinement:
 
         # 1f) Recalculate bond‐vectors for each phase if requested
         if recalculate_bond_vectors:
-            global global_bond_vectors
             for phase in cpdf_new._generators:
                 bond_vectors = self.analyzer.get_polyhedral_bond_vectors(getattr(cpdf_new, phase).phase)
                 self.global_bond_vectors[phase] = bond_vectors
@@ -1874,12 +1923,14 @@ class PDFRefinement:
                     pass
 
         print("\n[INFO] Completed building new FitRecipe with initial values\n")
+        
+        self.fit = fit_new
 
         # Enable verbose residual output (SR‐Fit will print residuals each iteration)
         if fit_new.fithooks:
             fit_new.fithooks[0].verbose = 2
         
-        self.fit = fit_new
+
 
         return fit_new
 
