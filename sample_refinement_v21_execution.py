@@ -1,74 +1,92 @@
 """
-Created on Thu Nov 23 12:39:22 2023
+================================================================================
+ Automated Structural Refinement via Pair Distribution Function (PDF) Analysis
+================================================================================
 
-@author: Tomasz Stawski
-tomasz.stawski@gmail.com
-tomasz.stawski@bam.de
+@author:    Tomasz Stawski
+@contact:   tomasz.stawski@gmail.com | tomasz.stawski@bam.de
+@version:   1.0
+@date:      2025-09-09
 
-# =============================================================================
-# DESCRIPTION:
-This script automates the process of refining a crystal structure against experimental X-ray scattering data. 
+DESCRIPTION:
+This script serves as the main execution environment for performing automated,
+multi-stage structural refinements of crystalline materials against X-ray
+scattering data. It leverages an object-oriented framework defined in the
+accompanying 'sample_refinement_v21_classes.py' module.
 
-Here is a breakdown of its workflow:
+The workflow is organized into several distinct stages:
 
-Configuration: The script starts by defining all experimental parameters in a project_data dictionary. This includes file paths, chemical composition, and instrumental settings.
+1.  **Configuration**: All experimental parameters, file paths, and model
+    details are defined in a centralized dictionary (`project_data`).
 
-Initialization: It then uses a set of custom classes (imported from sample_refinement_v21_classes) to set up the refinement environment. This includes preparing for parallel processing to speed up calculations.
+2.  **Initialization**: The script instantiates the necessary controller and
+    manager classes from the imported module, configuring the environment for
+    parallel processing to optimize computational performance.
 
-Data Loading: The script processes the raw experimental data to generate a Pair Distribution Function, G(r), which represents the probability of finding atom pairs at a certain distance r.
+3.  **Data Processing**: The raw experimental scattering data is processed to
+    generate the Pair Distribution Function (PDF), G(r), which is the basis
+    for the refinement.
 
-Model Building: It builds a theoretical PDF model based on an initial crystal structure guess from a .cif file.
+4.  **Model Construction**: A theoretical PDF is calculated from an initial
+    structural model provided in a Crystallographic Information File (.cif).
+    This forms the initial `FitRecipe` for the refinement.
 
-Refinement (Optional/Commented Out): The core of the script is a multi-step refinement process where the theoretical model is fitted to the experimental data. The script is set up to:
+5.  **Sequential Refinement**: The core of the script executes a series of
+    refinement steps. The theoretical model is iteratively fitted to the
+    experimental PDF by adjusting structural parameters (e.g., lattice
+    constants, atomic positions, atomic displacement parameters). The workflow
+    is designed to systematically explore different structural symmetries and
+    apply chemically motivated rigid-body constraints.
 
-Refine parameters like lattice constants, atomic positions, and atomic vibration amplitudes.
-
-Systematically lower the crystal symmetry (e.g., from cubic Pa-3 to triclinic P1) to see if a less symmetric model provides a better fit.
-
-Apply rigid-body constraints to maintain realistic chemical bonding (bond lengths and angles) during refinement.
-
-Simulation: Finally, the script runs a simulation workflow. It takes a previously optimized structure and calculates a theoretical PDF, comparing it against the experimental data to validate the model's accuracy.
+6.  **Simulation**: As a final validation step, the script can run a simulation
+    using a previously optimized structure to calculate a theoretical PDF and
+    compare it against experimental data.
 """
 
-#=============================================================================
-#                         PROJECT SETUP & INITIALIZATION
 # =============================================================================
-    
+# 1. PRIMARY REFINEMENT CONFIGURATION
+# =============================================================================
+# This dictionary contains all parameters for the main refinement workflow.
 project_data = {
-'project_name': 'ZirconiumVanadate25Cto25C_TESTING_OOP/',
-'xrd_directory': 'data/',
-'cif_directory': 'CIFs/',
-'fit_directory': 'fits/',
-'mypowderdata': 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
-'ciffile': {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]},
-'composition': 'O7 V2 Zr1',
-'detailed_composition': {
-    'Zr': {'symbol': 'Zr', 'Uiso': 0.0065, 'polyhedron_center': True, 'polyhedron_vertex': False, 'cutoff': (1.8, 2.2)},
-    'V':  {'symbol': 'V', 'Uiso': 0.0100, 'polyhedron_center': True, 'polyhedron_vertex': False, 'cutoff': (1.5, 2.4)},
-    'O':  {'symbol': 'O', 'Uiso': 0.0250, 'polyhedron_center': False, 'polyhedron_vertex': True},
-},
-'qdamp': 2.70577268e-02,
-'qbroad': 2.40376789e-06,
-'qmax': 22.0,
-'anisotropic': False,
-'unified_Uiso': True,
-'sgoffset': [0.0, 0.0, 0.0],
-'myrange': (0.0, 80),
-'myrstep': 0.05,
-'convergence_options': {'disp': True},
-'pdfgetx_config': {
-    'mode': 'xray',
-    'dataformat': 'QA',
-    'rpoly': 1.3,
-    'qmin': 0.0},
-'special_structure': {
-    'file_path': 'fits/ZirconiumVanadate25Cperiodic/18032025_071408/Phase0_6.cif',
-    'phase_index_to_update': 0}  # 0 for Phase0, 1 for Phase1, etc.
+    'project_name': 'ZirconiumVanadate25Cto25C_TESTING_OOP/',
+    'xrd_directory': 'data/',
+    'cif_directory': 'CIFs/',
+    'fit_directory': 'fits/',
+    'mypowderdata': 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
+    'ciffile': {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]},
+    'composition': 'O7 V2 Zr1',
+    'detailed_composition': {
+        'Zr': {'symbol': 'Zr', 'Uiso': 0.0065, 'polyhedron_center': True, 'polyhedron_vertex': False, 'cutoff': (1.8, 2.2)},
+        'V':  {'symbol': 'V', 'Uiso': 0.0100, 'polyhedron_center': True, 'polyhedron_vertex': False, 'cutoff': (1.5, 2.4)},
+        'O':  {'symbol': 'O', 'Uiso': 0.0250, 'polyhedron_center': False, 'polyhedron_vertex': True},
+    },
+    'qdamp': 2.70577268e-02,
+    'qbroad': 2.40376789e-06,
+    'qmax': 22.0,
+    'anisotropic': False,
+    'unified_Uiso': True,
+    'sgoffset': [0.0, 0.0, 0.0],
+    'myrange': (0.0, 80),
+    'myrstep': 0.05,
+    'convergence_options': {'disp': True},
+    'pdfgetx_config': {
+        'mode': 'xray',
+        'dataformat': 'QA',
+        'rpoly': 1.3,
+        'qmin': 0.0
+    },
+    # This optional section specifies a pre-refined structure to initialize atomic coordinates.
+    'special_structure': {
+        'file_path': 'fits/ZirconiumVanadate25Cperiodic/18032025_071408/Phase0_6.cif',
+        'phase_index_to_update': 0  # 0 corresponds to 'Phase0'
+    }
 }
 
 # =============================================================================
-#                 SIMULATION WORKFLOW CONFIGURATION
+# 2. SIMULATION-SPECIFIC PARAMETERS
 # =============================================================================
+# This dictionary contains parameters exclusively for the final simulation and
+# validation workflow.
 simulation_data = {
     'cif_directory': 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/',
     'ciffile': {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]},
@@ -86,30 +104,16 @@ simulation_data = {
     'csv_filename': 'sim_vs_obs.csv'
 }
 
-
 # =============================================================================
-# load libraries and settings 
+# 3. LIBRARY IMPORTS AND ENVIRONMENT SETUP
 # =============================================================================
 
-# Configure matplotlib for plotting
 import matplotlib
-
-# =============================================================================
-# Set the default figure size to 5 x 3.75 inches for consistency.
-matplotlib.rc('figure', figsize=(5, 3.75))
-
-# =============================================================================
-# Enable multi-threaded processing for parallel computations
-# Uses multiprocessing and psutil to manage CPU usage efficiently.
 import psutil
 import multiprocessing
-from multiprocessing import Pool, cpu_count
+import numpy as np
+from multiprocessing import Pool
 
-# =============================================================================
-# Numerical operations and arrays.
-import numpy as np  
-
-# =============================================================================
 # Core custom classes for the PDF structural refinement
 from sample_refinement_v21_classes import (
     RefinementConfig,
@@ -120,39 +124,40 @@ from sample_refinement_v21_classes import (
     PDFRefinement
 )
 
+matplotlib.rc('figure', figsize=(5, 3.75))
 
 # =============================================================================
-#                             MAIN EXECUTION BLOCK
+# 4. SCRIPT EXECUTION
 # =============================================================================
 
 if __name__ == '__main__':
-    
-    # 1. Load all settings from the configuration class
+
+    # 4.1. Configuration and Component Initialization
     try:
         config = RefinementConfig(project_data)
         print("Configuration loaded successfully.")
     except KeyError as e:
         print(f"Error initializing configuration: {e}")
-        # Exit or handle the error appropriately
         exit()
-        
-    # 2. Set up multiprocessing
+
+    # Configure parallel processing based on available system resources.
     syst_cores = multiprocessing.cpu_count()
     cpu_percent = psutil.cpu_percent()
     avail_cores = np.floor((100 - cpu_percent) / (100.0 / syst_cores))
     ncpu = int(np.max([1, avail_cores]))
     pool = Pool(processes=ncpu)
 
-    # 3. Instantiate all the necessary manager and workflow classes
+    # Instantiate all necessary manager and controller classes.
     analyzer = StructureAnalyzer(config.detailed_composition)
     results_manager = ResultsManager(config, analyzer)
     pdf_manager = PDFManager(config, ncpu, pool)
     helper = RefinementHelper()
-    
-    # The main workflow controller holds instances of the other classes
+
+    # The PDFRefinement class serves as the main controller, aggregating other components.
     workflow = PDFRefinement(config, pdf_manager, results_manager, helper, analyzer, ncpu, pool)
 
-    # 4. Generate the initial PDF from experimental data
+    # 4.2. Initial Data Processing and Model Construction
+    print("\nGenerating initial PDF from experimental data...")
     r0, g0, cfg = pdf_manager.generatePDF(
         data_directory=config.xrd_directory,
         data_filename=config.mypowderdata,
@@ -163,85 +168,84 @@ if __name__ == '__main__':
         pdfgetx_config=config.pdfgetx_config
     )
 
-    # 5. Build the PDFContribution and the initial FitRecipe
-    cpdf = pdf_manager.build_contribution(r0, g0, cfg, config.ciffile, config.myrange)
-    workflow.cpdf = cpdf
+    # Build the initial PDFContribution and FitRecipe objects.
+    cpdf0 = pdf_manager.build_contribution(r0, g0, cfg, config.ciffile, config.myrange)
+    workflow.cpdf = cpdf0
     fit0 = workflow.build_initial_recipe()
-    #--------------------------------------------------------------------
-    #                   SPECIAL STRUCTURE MODIFICATION
-    #----------------------------------------------------------------------
-    # Here we load a “special” refined structure from a previous PDF refinement
-    # (e.g. the result of refining Phase0 at 25 °C in space group P1, replicate (1×1×1)).
-    # This refined CIF contains updated atomic positions that broke higher symmetry
-    # constraints in order to capture subtle distortions at this temperature.
-    
-    #workflow.initialize_from_special_structure()
+
+    # 4.3. Initialization from a Pre-Refined Structure
+    # This step updates the atomic coordinates in the initial model using those
+    # from a previously refined, low-symmetry structure. This provides a more
+    # accurate starting point for the refinement by breaking initial symmetry.
+    workflow.initialize_from_special_structure()
 
     # =============================================================================
-    #                               FITTING STEPS (FIRST DATASET)
+    # 5. SEQUENTIAL REFINEMENT WORKFLOW (FIRST DATASET)
     # =============================================================================
+    # The following blocks define a multi-stage refinement strategy. Parameters
+    # are refined sequentially, and crystal symmetry is progressively lowered
+    # to test for better-fitting, less-symmetric structural models.
 
     fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
     fitting_range = [1.5, 27]
-    
-    # ========================== Step 0: Initial Fit =============================
+
+    # --- Step 0: Initial Fit (Pa-3 symmetry) ---
     i = 0
     workflow.modify_recipe_spacegroup(['Pa-3'])
-    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 1: Refinement ==============================
+    # --- Step 1: Refinement with Tighter Constraints (Pa-3 symmetry) ---
     i = 1
     workflow.modify_recipe_spacegroup(['Pa-3'])
-    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 2: Adjust Symmetry =========================
+    # --- Step 2: Symmetry Reduction (P213) ---
     i = 2
     workflow.modify_recipe_spacegroup(['P213'])
-    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 3: Adjust Symmetry =========================
+    # --- Step 3: Symmetry Reduction (P23) ---
     i = 3
     workflow.modify_recipe_spacegroup(['P23'])
-    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 4: Further Refinement ======================
+    # --- Step 4: Further Refinement (P23 symmetry) ---
     i = 4
     workflow.modify_recipe_spacegroup(['P23'])
-    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 5: Lowest Symmetry =========================
+    # --- Step 5: Lowest Symmetry (P1) ---
     i = 5
     workflow.modify_recipe_spacegroup(['P1'])
-    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 6: Lowest Symmetry =========================
+    # --- Step 6: Final Refinement (P1 symmetry) ---
     i = 6
     workflow.modify_recipe_spacegroup(['P1'])
-    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001),  adaptive=False)
+    workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
-    
-    # =============================================================================
-    #                            FINALIZE RESULTS
-    # =============================================================================
+
+    # Finalize and save all results from the first refinement series.
     results_manager.finalize_results(workflow.cpdf, workflow.fit)
 
     # =============================================================================
-    #                   CONTINUE FITTING WITH DIFFERENT DATA
+    # 6. SEQUENTIAL REFINEMENT WORKFLOW (SECOND DATASET)
     # =============================================================================
-    # =============================== New (or the same) XRD Data ====================================
+    # This section demonstrates how to continue the refinement process using a
+    # new dataset while carrying over the results from the previous stage.
+
+    print("\nInitiating second refinement stage with a new dataset...")
     config.mypowderdata = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
-    
     config.new_output_directory()
-    # Update the results manager to use the new output path
     workflow.results_manager = ResultsManager(config, analyzer)
-    
-    # Load the new data
+
+    # Load the new experimental data.
     r0_2, g0_2, cfg_2 = pdf_manager.generatePDF(
         data_directory=config.xrd_directory,
         data_filename=config.mypowderdata,
@@ -251,89 +255,82 @@ if __name__ == '__main__':
         myrstep=config.myrstep,
         pdfgetx_config=config.pdfgetx_config
     )
-    
-    # Build a fresh cpdf2 that reuses the exact same Structures from `cpdf`
-    cpdf2 = workflow.rebuild_contribution(
+
+    # Create a new contribution using the refined structure from the previous
+    # stage and the newly loaded data.
+    cpdf1 = workflow.rebuild_contribution(
         old_cpdf=workflow.cpdf, r_obs=r0_2, g_obs=g0_2
     )
-    
-    # Re-initialize a brand-new FitRecipe from cpdf2:
-    fit1 = workflow.rebuild_recipe_from_initial(
-        fit_old=workflow.fit, cpdf_new=cpdf2, spaceGroups=['Pa-3'], anisotropic=False, unified_Uiso=True, 
-        sgoffset=[0, 0, 0], recalculate_bond_vectors=True)
 
-    # ========================== FITTING STEPS (SECOND DATASET) =================
-    
-    fitting_range = [1.5, 27] # New fitting range
+    # Build a new, default recipe for the second stage.
+    workflow.cpdf = cpdf1
+    fit1 = workflow.build_initial_recipe()
+
+    # CRITICAL STEP: Update the new recipe (`fit1`) with the refined parameter
+    # values from the end of the first stage (`fit0`).
+    workflow.update_recipe_from_initial(fit0, fit1, cpdf1, recalculate_bond_vectors=True)
+
+    # --- Refinement steps for the second dataset ---
+    fitting_range = [1.5, 27]
     fitting_order = ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-    
-    # ========================== Step 0: Initial Fit (new data) ==================
+
+    # --- Step 0: Initial Fit (new data) ---
     i = 0
     workflow.modify_recipe_spacegroup(['Pa-3'])
     workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 1: Refinement (new data) ====================
+    # --- Step 1: Refinement (new data) ---
     i = 1
     workflow.modify_recipe_spacegroup(['Pa-3'])
     workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 2: Adjust Symmetry (new data) ===============
+    # --- Step 2: Adjust Symmetry (new data) ---
     i = 2
     workflow.modify_recipe_spacegroup(['P213'])
     workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=False)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
-    
-    # ========================== Step 3: Adjust Symmetry (new data) ===============
+
+    # --- Step 3: Adjust Symmetry (new data) ---
     i = 3
     workflow.modify_recipe_spacegroup(['P23'])
     workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=True)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 4: Further Refinement (new data) ===========
+    # --- Step 4: Further Refinement (new data) ---
     i = 4
     workflow.modify_recipe_spacegroup(['P23'])
     workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=True)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 5: Lowest Symmetry (new data) ==============
+    # --- Step 5: Lowest Symmetry (new data) ---
     i = 5
     workflow.modify_recipe_spacegroup(['P1'])
     workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.001), constrain_angles=(True, 0.001), constrain_dihedrals=(False, 0.001), adaptive=True)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
 
-    # ========================== Step 6: Lowest Symmetry (new data) ==============
+    # --- Step 6: Lowest Symmetry (new data) ---
     i = 6
     workflow.modify_recipe_spacegroup(['P1'])
     workflow.apply_rigid_body_constraints(constrain_bonds=(True, 0.0001), constrain_angles=(True, 0.0001), constrain_dihedrals=(False, 0.001), adaptive=True)
     workflow.run_refinement_step(i, fitting_range, config.myrstep, fitting_order, 'resv')
-    
-    # =============================================================================
-    #                             FINALIZE RESULTS (new data)
-    # =============================================================================
+
+    # Finalize and save all results from the second refinement series.
     workflow.results_manager.finalize_results(workflow.cpdf, workflow.fit)
-    
-    #=============================================================================
-    # Run simulation workflow with specific parameters
-    #=============================================================================
-    
 
-# =============================================================================
-#                       RUN SIMULATION WORKFLOW
-# =============================================================================
+    # =============================================================================
+    # 7. SIMULATION WORKFLOW (OPTIONAL)
+    # =============================================================================
+    # This section can be un-commented to execute a final validation simulation
+    # using an optimized structural model.
 
-# Execute the simulation with the organized configuration
-# workflow.simulate_pdf_workflow(
-#     # Pass general config for shared parameters like composition, q-values, etc.
-#     main_config=config,
-#     # Pass the dedicated dictionary for simulation-specific settings
-#     sim_config=simulation_data
-# )
+    # workflow.simulate_pdf_workflow(
+    #     main_config=config,
+    #     sim_config=simulation_data
+    # )
 
-
-
-    
-# =============================================================================
-    # End of script
+    print("\nScript execution finished.")
+    # =============================================================================
+    #                               END OF SCRIPT
     # =============================================================================
