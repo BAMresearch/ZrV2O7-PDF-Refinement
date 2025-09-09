@@ -1,66 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Aug 21 14:57:11 2025
-
-@author: tomaszstawski
-"""
-"""
 ================================================================================
- Core Classes for Pair Distribution Function (PDF) Structural Refinement
+  Core Classes for Pair Distribution Function (PDF) Structural Refinement
 ================================================================================
-
-This module encapsulates the core components for performing PDF structural
-refinements of crystalline materials, specifically tailored for ZrV2O7-based
-structures but adaptable for other systems.
-
-By organizing the logic into distinct classes, this module promotes code
-reusability, maintainability, and improves the legibility of the main
-execution script.
-
-Classes
--------
-- StructureAnalyzer:
-    Handles all geometric calculations on the crystal structure, such as finding
-    bond lengths, angles, and dihedrals, and generating constraint expressions.
-- ResultsManager:
-    Manages all output-related tasks, including plotting fits, visualizing
-    structural statistics, and saving results to files (e.g., .cif, .csv, .txt).
-- PDFManager:
-    Responsible for generating the experimental PDF from raw data and building
-    the PDFContribution object from structural models.
-- RefinementHelper:
-    A utility class for miscellaneous helper functions used across the workflow.
-- PDFRefinement:
-    The main orchestrator class that integrates all other components to manage
-    and execute the multi-step refinement workflow.
-
-Example Workflow
-----------------
-The intended usage is to instantiate these classes in a main script and
-use the PDFRefinement object to drive the analysis:
-
-    # 1. Initialize configuration and managers
-    config = RefinementConfig()
-    analyzer = StructureAnalyzer(config.detailed_composition)
-    results = ResultsManager(config, analyzer)
-    pdf_manager = PDFManager(config, ncpu, pool)
-    helper = RefinementHelper()
-
-    # 2. Create the main workflow controller
-    workflow = PDFRefinement(config, pdf_manager, results, helper, analyzer, ncpu, pool)
-
-    # 3. Build the initial model and recipe
-    workflow.build_initial_recipe()
-
-    # 4. Run refinement steps
-    workflow.run_refinement_step(...)
 
 @author:    Tomasz Stawski
 @contact:   tomasz.stawski@gmail.com | tomasz.stawski@bam.de
 @version:   1.0
-@date:      2025-08-21
+@date:      2025-09-09
 @status:    Production
+
+DESCRIPTION:
+This module defines a set of classes for performing PDF structural refinements.
+The classes are designed to be instantiated and controlled by an external
+execution script.
+
+CLASSES:
+  - RefinementConfig: Stores and validates all project configuration parameters.
+  - StructureAnalyzer: Performs geometric calculations on crystal structures.
+  - ResultsManager: Handles the generation and saving of output files and plots.
+  - PDFManager: Manages the generation of PDF data and `PDFContribution` objects.
+  - RefinementHelper: Contains static helper methods for the refinement workflow.
+  - PDFRefinement: The main controller class that integrates all other components
+    and executes the refinement workflow.
 """
 
 # =============================================================================
@@ -130,22 +93,22 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class RefinementConfig:
     """
-    A configuration class for PDF refinement projects.
+    Stores and validates all configuration parameters for a PDF refinement.
 
-    This class requires all parameters to be explicitly provided in a dictionary
-    at initialization. It ensures that no default values are used accidentally.
-    If any parameter is missing from the input dictionary, it will raise a
-    KeyError to prevent an incomplete configuration.
+    This class is initialized from a dictionary. It verifies that all required
+    parameters are present and dynamically creates timestamped output directories
+    for storing results.
     """
     def __init__(self, params: dict):
         """
         Initializes the configuration from a dictionary of parameters.
 
         Args:
-            params (dict): A dictionary containing all required project parameters.
+            params (dict): A dictionary containing all required parameters for
+                the project. All keys defined in `required_keys` must be present.
 
         Raises:
-            KeyError: If any of the required keys are missing from the params dict.
+            KeyError: If any required key is absent from the `params` dictionary.
         """
         # Define the complete list of keys that MUST be provided by the user.
         required_keys = [
@@ -194,9 +157,11 @@ class RefinementConfig:
 
 class StructureAnalyzer:
     """
-    Encapsulates all geometric calculations on a crystal structure.
-    This includes finding bonds, angles, and dihedrals, and creating the
-    string expressions used to constrain these values in a refinement.
+    Performs geometric and crystallographic calculations for a structure.
+
+    This class computes structural properties such as bond lengths, angles,
+    and dihedrals. It also generates mathematical string expressions used for
+    applying rigid-body constraints during a refinement.
     """
 
     def __init__(self, detailed_composition):
@@ -326,7 +291,7 @@ class StructureAnalyzer:
                 'length':         cartesian edge length,
                 'relative_length':fractional‐coord edge length
               }
-        """
+             """
 
         # 1) Decide which elements are centers vs. vertices
         centers  = [el for el,info in self.detailed_composition.items() if info.get('polyhedron_center', False)]
@@ -597,6 +562,13 @@ class StructureAnalyzer:
     def create_constrain_expressions_for_bonds(self, bond_pairs, phase):
         """
         Create constraint expressions for bond lengths between two atoms for a given phase.
+
+        Parameters:
+        - bond_pairs: List of dictionaries representing bond pairs with labels and bond lengths.
+        - phase: The phase identifier.
+
+        Returns:
+        - constrain_dict: Dictionary containing constraint expressions for each bond.
         """
         constrain_dict = {}
         for bond in bond_pairs:
@@ -617,6 +589,14 @@ class StructureAnalyzer:
     def create_constrain_expressions_for_angles(self, angle_triplets, phase):
         """
         Generate constraint expressions for angles formed by atom triplets in a given phase.
+
+        Parameters:
+        - angle_triplets: List of dictionaries representing angle triplets with angle values and labels.
+        - phase: String, the phase identifier.
+
+        Returns:
+        - constrain_dict: Dictionary where keys are variable names for angles, and values are
+          dictionaries containing the constraint expression, angle value, and involved atoms.
         """
         constrain_dict = {}
         for angle in angle_triplets:
@@ -644,6 +624,14 @@ class StructureAnalyzer:
     def create_constrain_expressions_for_dihedrals(self, dihedral_quadruplets, phase):
         """
         Generate constraint expressions for dihedral angles formed by atom quadruplets in a given phase.
+
+        Parameters:
+        - dihedral_quadruplets: List of dictionaries representing dihedral quadruplets with angle values and labels.
+        - phase: String, the phase identifier.
+
+        Returns:
+        - constrain_dict: Dictionary where keys are variable names for dihedral angles, and values are
+          dictionaries containing the constraint expression, angle value, and involved atoms.
         """
         constrain_dict = {}
 
@@ -1030,6 +1018,16 @@ class ResultsManager:
         """
         Finalize the refinement process by exporting partial PDFs for each phase
         and generating a full-range extrapolated fit plot.
+    
+        Parameters:
+        - cpdf: PDFContribution object, containing the fit results and phase contributions.
+        - fit: FitRecipe object, the current fitting recipe used in the refinement.
+        - output_results_path: String, path where the results will be saved.
+        - myrange: Tuple, the range of r values for the extrapolated fit (e.g., (0.0, 80.0)).
+        - myrstep: Float, the step size for r values.
+    
+        Returns:
+        - None. Saves partial PDFs and the full-range extrapolated fit plot to the output directory.
         """
         from matplotlib.pyplot import close
         output_results_path = self.config.output_results_path
@@ -1120,6 +1118,10 @@ class ResultsManager:
             iteration_counter (int): The current iteration number.
             save_every (int): The frequency (in iterations) to save the state.
         """
+        
+        # This functionality is currently disabled but can be re-enabled for
+        # long refinements.
+        
         # Save only on the specified interval.
         # if iteration_counter > 0 and iteration_counter % save_every == 0:
         #     print(f"Saving current state at iteration {iteration_counter}...")
@@ -1355,9 +1357,6 @@ class RefinementHelper:
         return mapped_params
     
 
-
-
-
 class PDFRefinement:
     """
     Main class to orchestrate the entire PDF refinement workflow. It manages
@@ -1378,12 +1377,22 @@ class PDFRefinement:
         self.iteration_counter = 0
         self.file_lock = threading.Lock()
         self.total_iteration_count = 0
-     
-
 
     def run_refinement_step(self, i, fitting_range, myrstep, fitting_order, residualEquation, save_every=1):
         """
         Perform the refinement process for a single stage index "i".
+        
+        Parameters:
+        - i: Integer, index of the fitting step.
+        - fitting_range: List of two floats, the r range for the fit (e.g., [1.5, 27]).
+        - myrstep: Float, step size for r values.
+        - fitting_order: List of strings, tags defining the fitting order (e.g., ['lat', 'scale', 'xyz']).
+        - residualEquation: String, residual equation used for fitting (e.g., 'resv').
+        - save_very: frequency of progress logging, default = 1 (each iteration)
+
+        Returns:
+        - None
+
         """
         print('-------------------------------------------------------------------')
         print(f"Fitting stage {i}")
@@ -1466,11 +1475,72 @@ class PDFRefinement:
 
             
     def build_initial_recipe(self):
-        """
-        Create a basic fitting recipe with default constraints based on the space group.
+        """Constructs the initial FitRecipe object for the refinement.
 
+        It systematically defines and adds all necessary
+        parameters, applies symmetry constraints, and prepares the model for
+        the first optimization step.
+        
+        The process involves the following sequential operations:
+        
+        1.  **Recipe Initialization**:
+            - A new, empty `FitRecipe` object is instantiated and assigned to
+              `self.fit`.
+            - The `PDFContribution` object, containing the experimental data
+              and structural model generators, is added to the recipe.
+        
+        2.  **Core Parameter Definition**:
+            - **Scale Factors**: A scale factor variable (`s_Phase...`) is
+              created for each structural phase. This parameter accounts for
+              the phase fraction and the overall experimental intensity scale.
+            - **Correlated Motion (delta2)**: A `delta2` variable is added for
+              each phase. This parameter models the sample-dependent peak
+              sharpening at low-r that arises from correlated atomic motion,
+              a phenomenon not described by the standard atomic displacement
+              parameters (ADPs).
+        
+        3.  **Crystallographic Parameter Generation**:
+            - **Symmetry Application**: The `constrainAsSpaceGroup` function is
+              invoked to analyze the crystal structure of each phase. It
+              determines the set of independent refinable parameters (lattice,
+              ADP, and atomic coordinates) consistent with the specified
+              space group symmetry.
+            - **Lattice Parameters**: The independent lattice parameters (e.g.,
+              'a', 'b', 'c', 'alpha', 'beta', 'gamma') identified by the
+              symmetry analysis are added to the recipe as refinable variables.
+            - **Atomic Displacement Parameters (ADPs)**: Parameters describing
+              thermal and static atomic disorder are added. The method follows
+              the configuration setting:
+              - If `anisotropic` is True, independent anisotropic displacement
+                parameters (`U11`, `U22`, etc.) are added.
+              - If `anisotropic` is False, isotropic parameters (`Uiso`) are
+                added. If `unified_Uiso` is True, all atoms of the same
+                element within a phase are constrained to share a single
+                `Uiso` value.
+            - **Atomic Coordinates**: The independent fractional atomic
+              coordinates ('x', 'y', 'z') determined by the symmetry analysis
+              are added to the recipe as refinable variables.
+        
+        4.  **Nanoparticle Shape Function**:
+            - The `sphericalCF` characteristic function is registered for each
+              phase to model the damping of the PDF signal that results from
+              finite crystallite size.
+            - A corresponding `psize` parameter, representing the average
+              diameter of the spherical nanoparticles, is added for each phase.
+            - The overall phase equation is updated to include this shape
+              function multiplicative term.
+        
+        5.  **Initial Bond Vector Calculation**:
+            - As a final preparatory step, the `get_polyhedral_bond_vectors`
+              method is called to calculate all bond lengths and angles from
+              the initial, unrefined structure.
+            - These geometric descriptors are stored in the instance variable
+              `self.global_bond_vectors` for later use when applying rigid-body
+              constraints via the `apply_rigid_body_constraints` method.
+        
         Returns:
-        - fit: FitRecipe object, the initialized fitting recipe.
+            diffpy.srfit.fitbase.FitRecipe: The fully constructed and configured
+            `FitRecipe` object, ready for the first refinement step.
         """
         self.fit = FitRecipe()
         self.fit.addContribution(self.cpdf)
@@ -1600,8 +1670,58 @@ class PDFRefinement:
 
     def modify_recipe_spacegroup(self, spacegroup_list):
         """
-        Modify the fitting recipe by updating the space group and regenerating atomic position variables,
-        constraints, and restraints.
+        Modifies the FitRecipe to apply a new space group symmetry.
+        
+        It rebuilds the atomic parameter set of the `FitRecipe` to be
+        consistent with a new space group while preserving the refined atomic
+        positions and lattice constants as much as possible.
+    
+        The process involves the following sequential operations:
+    
+        1.  **State Preservation**:
+            - The current refined values of all atomic coordinate variables
+              (names starting with 'x_', 'y_', 'z_') are extracted from the
+              `FitRecipe` and stored in a temporary dictionary.
+    
+        2.  **Variable Purging**:
+            - All existing atomic coordinate variables are removed from the
+              `FitRecipe`.
+            - All existing rigid-body constraint variables (names starting
+              with 'bond_', 'angle_', 'dihedral_') are also removed. This
+              is a necessary step because the set of independent atoms and
+              their geometric relationships will change with the new symmetry,
+              rendering the previous constraints invalid.
+    
+        3.  **New Symmetry Application**:
+            - The `constrainAsSpaceGroup` function is called for each phase
+              using the new space group string provided in `spacegroup_list`.
+            - This operation re-analyzes the structure to determine the new set
+              of independent atomic coordinates required to describe the model
+              under the new symmetry constraints.
+    
+        4.  **Parameter Regeneration**:
+            - The method iterates through the newly determined independent
+              atomic position parameters.
+            - For each parameter, it adds a new variable to the `FitRecipe`.
+              The initial value of this new variable is set from the preserved
+              coordinates if a matching atom label exists, thus ensuring a
+              continuous and physically reasonable structural model across the
+              symmetry change.
+    
+        5.  **Lattice Parameter Handling**:
+            - The method re-applies constraints to the lattice parameters. It
+              specifically uses the original high-symmetry space group from the
+              project configuration to do this. This enforces a specific
+              lattice geometry (e.g., pseudo-cubic) even when the atomic
+              arrangement conforms to a lower symmetry.
+    
+        Args:
+            spacegroup_list (list): A list of space group strings (e.g.,
+                ['P213', 'P1']), one for each phase in the model.
+    
+        Returns:
+            diffpy.srfit.fitbase.FitRecipe: The modified `FitRecipe` object,
+            ready for further refinement under the new symmetry constraints.
         """
         # Step 1: Read out all atom position variables from the fit
         old_xyz_vars = {name: getattr(self.fit, name).value for name in self.fit.names if name.startswith(('x_', 'y_', 'z_'))}
@@ -1676,505 +1796,359 @@ class PDFRefinement:
 
         return self.fit   
     
-    def rebuild_recipe_from_initial(self,
+# In sample_refinement_v21_classes.py, inside the PDFRefinement class:
+
+    def update_recipe_from_initial(self,
             fit_old,
+            fit_new,
             cpdf_new,
-            spaceGroups,
-            anisotropic = False,
-            unified_Uiso = True,
-            sgoffset=[0, 0, 0],
-            recalculate_bond_vectors=False
-        ):
-        """
-        Create a “basic” fitting recipe for `cpdf_new`, but initialize every variable
-        with the value it had in `fit_old`, if it exists there.
+            recalculate_bond_vectors=False):
+        """Updates a new FitRecipe with refined values from a previous fit.
 
-        Parameters:
-        -----------
-        fit_old : FitRecipe
-            The FitRecipe object from the previous round of refinement. Any variable
-            whose name appears in both `fit_old` and the new recipe will have its
-            .value copied from `fit_old` into the new FitRecipe.
-        cpdf_new : PDFContribution
-            The PDFContribution object for the “new” data (e.g. cpdf2). This will be
-            added to the new FitRecipe before any variables are created.
-        spaceGroups : list of str
-            A list of space‐group strings, one per phase in `cpdf_new._generators`.
-        anisotropic : bool
-            If True, enable anisotropic ADPs for every phase. Otherwise, add isotropic
-            Uiso variables (either unified by element or independent, according to
-            `unified_Uiso`).
-        unified_Uiso : bool
-            If True (and `anisotropic=False`), create one shared Uiso per element per phase
-            (e.g. Uiso_O_phase, Uiso_V_phase, Uiso_Zr_phase). If False, create an independent
-            Uiso variable for each atom in each phase.
-        sgoffset : list of 3 floats, optional
-            Passed directly to constrainAsSpaceGroup(...). Default is [0, 0, 0].
-        recalculate_bond_vectors : bool, optional
-            If True, recalculate global bond‐vector dictionaries after building all variables
-            (so that rigid‐body constraints can use up‐to‐date bond vectors). If False (default),
-            skip this step.
-
-        Returns:
-        --------
-        fit_new : FitRecipe
-            A brand‐new FitRecipe built exactly as in `refinement_basic()`, but with:
-            1) the same variables (scale factors, Δ2, lattice, ADPs, xyz, psize) created on
-               `cpdf_new` that `refinement_basic()` would create, and
-            2) every variable that also existed in `fit_old` having its `.value` initialized
-               to the same value it had in `fit_old`.
-        """
+       This method takes the results from a completed refinement (`fit_old`) and uses them
+       to initialize the parameters for the next refinement stage (`fit_new`). This
+       ensures continuity, provides a better starting point for the optimizer,
+       and typically leads to faster and more stable convergence.
+    
+       The core functionality involves copying the `.value` of each parameter
+       from the old recipe to the new one. It also provides an option to
+       recalculate derived structural properties (e.g., bond vectors) that may
+       have become outdated due to changes in the structure during the previous
+       refinement.
+    
+       Args:
+           fit_old (FitRecipe):
+               The source `FitRecipe` object from a *completed* refinement. Its
+               parameter values will be used as the source for initialization.
+           fit_new (FitRecipe):
+               The target `FitRecipe` object that will be initialized for the
+               *next* refinement step. This object is modified in place.
+           cpdf_new (PDFContribution):
+               The `PDFContribution` object associated with `fit_new`. This is
+               essential if bond vectors need recalculation, as it holds the
+               up-to-date structural phase information.
+           recalculate_bond_vectors (bool, optional):
+               If True, recalculates structural properties like polyhedral bond
+               vectors using the structure from `cpdf_new`. This should be enabled
+               when preceding refinement steps have altered lattice or atomic
+               parameters. Defaults to False.
+    
+       Returns:
+           FitRecipe:
+               The updated `fit_new` object, now populated with values from
+               `fit_old` and set as the active recipe for the workflow via
+               `self.fit`.
+   """
         print("\n======================================")
-        print("[INFO] Building a new basic refinement recipe with initial values from previous fit")
+        print("[INFO] Updating new recipe with initial values from previous fit")
         print("======================================\n")
 
- # --- DIAGNOSTIC PRINT BLOCK ---
-        print("\n--- DEBUGGING ADP SETTINGS ---")
-        print(f"Received 'anisotropic' parameter with value: {anisotropic} (Type: {type(anisotropic)})")
-        print(f"Received 'unified_Uiso' parameter with value: {unified_Uiso} (Type: {type(unified_Uiso)})")
-        print("--- END DEBUG ---\n")
-        
-        """
-        Create a “basic” fitting recipe for `cpdf_new`, but initialize every variable
-        # ... (rest of the docstring) ...
-        """
-        print("\n======================================")
-
-        # STEP 1: Build the brand‐new “basic” recipe exactly as refinement_basic() does
-        fit_new = FitRecipe()
-        fit_new.addContribution(cpdf_new)
-        print("[INFO] Added PDFContribution to new FitRecipe")
-
-        # 1a) Phase equation (scale factors)
-        phase_equation = ""
-        for phase in cpdf_new._generators:
-            phase_equation += f"s_{phase}*{phase} + "
-        cpdf_new.setEquation(phase_equation[:-3])
-        print(f"[INFO] Set phase equation: {cpdf_new.getEquation()}")
-
-        # 1b) Add Δ2 for each phase independently
-        for phase in cpdf_new._generators:
-            fit_new.addVar(
-                getattr(cpdf_new, phase).delta2,
-                name=f"delta2_{phase}",
-                value=2.0,
-                tags=["delta2", str(phase), f"delta2_{phase}", "delta"]
-            )
-            fit_new.restrain(
-                getattr(cpdf_new, phase).delta2,
-                lb=0.0, ub=5.0, scaled=True, sig=0.005
-            )
-
-        # 1c) Add scale factors s_phase
-        for phase in cpdf_new._generators:
-            fit_new.addVar(
-                getattr(cpdf_new, f"s_{phase}"),
-                value=0.1,
-                tags=["scale", str(phase), f"s_{phase}"]
-            )
-            fit_new.restrain(
-                getattr(cpdf_new, f"s_{phase}"),
-                lb=0.0, scaled=True, sig=0.0005
-            )
-
-        # 1d) For each phase, apply the provided space group and add lattice, ADP, xyz
-        for i, phase in enumerate(cpdf_new._generators):
-            spaceGroup = spaceGroups[i]
-            print(f"\n[INFO] Applying space group '{spaceGroup}' to phase '{phase}'")
-
-            sgpar = constrainAsSpaceGroup(
-                getattr(cpdf_new, phase).phase,
-                spaceGroup,
-                sgoffset=sgoffset
-            )
-            
-            #sgpar = constrainAsSpaceGroup(getattr(self.cpdf, phase).phase, spaceGroup, sgoffset=self.config.sgoffset)
-
-            # — add lattice parameters (latpars)
-            for par in sgpar.latpars:
-                fit_new.addVar(
-                    par,
-                    value=par.value,
-                    name=f"{par.name}_{phase}",
-                    fixed=False,
-                    tags=["lat", str(phase), f"lat_{phase}"]
-                )
-
-            # — add ADPs
-            if anisotropic:
-                getattr(cpdf_new, phase).stru.anisotropy = True
-                print(f"[INFO]   Enabling anisotropic ADPs for phase '{phase}'")
-                for par in sgpar.adppars:
-                    atom = par.par.obj
-                    atom_label  = atom.label
-                    atom_symbol = atom.element
-                    # pull Uiso directly from detailed_composition
-                    u0 = self.config.detailed_composition[atom_symbol]['Uiso']
-                    name = f"{par.name}_{atom_label}_{phase}"
-                    tags = [
-                        "adp",
-                        f"adp_{atom_label}",
-                        f"adp_{atom_symbol}_{phase}",
-                        f"adp_{phase}",
-                        f"adp_{atom_symbol}",
-                        str(phase)
-                    ]
-                    fit_new.addVar(par, value=u0, name=name, tags=tags)
-                    fit_new.restrain(
-                        par,
-                        lb=0.0, ub=0.1, scaled=True, sig=0.0005
-                    )
-            else:
-
-                if unified_Uiso:
-                    getattr(cpdf_new, phase).stru.anisotropy = False
-                    print(f"[INFO]   Using unified isotropic Uiso for phase '{phase}'")
-                    # one Uiso per element
-                    for el, info in self.config.detailed_composition.items():
-                        u0 = info['Uiso']
-                        var = fit_new.newVar(
-                            f"Uiso_{el}_{phase}",
-                            value=u0,
-                            tags=["adp", el, str(phase)]
-                        )
-                        print(var)
-                        for atom in getattr(cpdf_new, phase).phase.getScatterers():
-                            if atom.element == el:
-                                fit_new.constrain(atom.Uiso, var)
-                                fit_new.restrain(
-                                    atom.Uiso,
-                                    lb=0.0, ub=0.1, scaled=True, sig=0.0005
-                                )
-                else:
-                    
-#                   isotropic Uiso handling
-                    mapped_adppars = self.helper.map_sgpar_params(sgpar, "adppars")
-                    added_adps = set()
-                    for par in sgpar.adppars:
-                        try:
-                            atom_label = mapped_adppars[par.name][1]
-                            print(atom_label)
-                            added_adps.add(atom_label)
-                            print('Uiso,', atom_label)
-                        except Exception:
-                            pass
-                    getattr(cpdf_new, phase).stru.anisotropy = False
-                    print(f"[INFO]   Using independent isotropic Uiso for phase '{phase}'")
-                    for atom in getattr(cpdf_new, phase).phase.getScatterers():
-                        if atom.name.upper() in added_adps:
-                            el = atom.element
-                            u0 = self.config.detailed_composition[el]['Uiso']
-                            var_name = f"{atom.name}_{phase}"
-                            fit_new.addVar(
-                                atom.Uiso,
-                                value=u0,
-                                name=var_name,
-                                fixed=False,
-                                tags=["adp", str(phase), f"adp_{phase}", f"adp_{el}"]
-                            )
-                            fit_new.restrain(
-                                atom.Uiso,
-                                lb=0.0, ub=0.1, scaled=True, sig=0.0005
-                            )
-  
-            # — add atomic xyz parameters (xyzpars)
-            mapped_xyzpars = self.helper.map_sgpar_params(sgpar, "xyzpars")
-            self.added_params[str(phase)] = set()
-            print(f"[INFO]   Adding atomic position variables (xyzpars) for phase '{phase}'")
-            for par in sgpar.xyzpars:
+        # Copy values from the old fit to the new one
+        print("[INFO] Copying refined values from previous fit into the new recipe...")
+        for name in fit_old.names:
+            if name in fit_new.names:
                 try:
-                    atom_symbol = par.par.obj.element
-                    mapped_name = mapped_xyzpars[par.name][0]
-                    atom_label  = mapped_xyzpars[par.name][1]
-                    name_long   = f"{mapped_name}_{phase}"
-                    tags = [
-                        "xyz",
-                        f"xyz_{atom_symbol}",
-                        f"xyz_{atom_symbol}_{phase}",
-                        f"xyz_{phase}",
-                        str(phase)
-                    ]
-                    fit_new.addVar(par, name=name_long, tags=tags)
-                    self.added_params[str(phase)].add(atom_label)
-                except Exception:
-                    pass
+                    old_val = getattr(fit_old, name).value
+                    getattr(fit_new, name).value = old_val
+                    # print(f"[INFO]   Copied '{name}' = {old_val}") # For debugging
+                except AttributeError:
+                    print(f"[WARNING] Could not copy value for '{name}'.")
+        print("[INFO] Value copy complete.")
 
-        # 1e) Register spherical‐envelope (“psize_”) for each phase
-        phase_equation = ""
-        for phase in cpdf_new._generators:
-            cpdf_new.registerFunction(
-                sphericalCF,
-                name=f"sphere_{phase}",
-                argnames=["r", f"psize_{phase}"]
-            )
-            phase_equation += f"s_{phase}*{phase}*sphere_{phase} + "
-        cpdf_new.setEquation(phase_equation[:-3])
-        print(f"\n[INFO] Updated phase equation with spherical envelope: {cpdf_new.getEquation()}")
-
-        for phase in cpdf_new._generators:
-            fit_new.addVar(
-                getattr(cpdf_new, f"psize_{phase}"),
-                value=100.0,
-                fixed=False,
-                tags=["psize", f"psize_{phase}", str(phase)]
-            )
-            fit_new.restrain(
-                getattr(cpdf_new, f"psize_{phase}"),
-                lb=0.0, scaled=True, sig=0.1
-            )
-
-        # 1f) Recalculate bond‐vectors for each phase if requested
         if recalculate_bond_vectors:
+            # CORRECTED: Use the cpdf_new object passed into the function
             for phase in cpdf_new._generators:
-                bond_vectors = self.analyzer.get_polyhedral_bond_vectors(getattr(cpdf_new, phase).phase)
+                phase_generator = getattr(cpdf_new, phase)
+                bond_vectors = self.analyzer.get_polyhedral_bond_vectors(phase_generator.phase)
                 self.global_bond_vectors[phase] = bond_vectors
                 print(f"[INFO] Recalculated bond vectors for phase '{phase}'")
 
-        # STEP 2: Copy every matching .value from fit_old → fit_new (excluding xyz)
-        print("\n[INFO] Copying initial values from previous fit into the new recipe")
-        for name in fit_old.names:
-            if name.startswith(("x_", "y_", "z_")) or "xyz" in name:
-                continue
-            if name in fit_new.names:
-                try:
-                    oldval = getattr(fit_old, name).value
-                    getattr(fit_new, name).value = oldval
-                    print(f"[INFO]   Copied '{name}' = {oldval}")
-                except Exception:
-                    pass
-
-        print("\n[INFO] Completed building new FitRecipe with initial values\n")
-        
-        
-
-        # Enable verbose residual output (SR‐Fit will print residuals each iteration)
+        # Final setup
         if fit_new.fithooks:
             fit_new.fithooks[0].verbose = 2
-        
 
+        # Update the workflow's main fit object to the new one
         self.fit = fit_new
-        return fit_new
+
+        return self.fit
+ 
 
     
     def apply_rigid_body_constraints(self, constrain_bonds, constrain_angles, constrain_dihedrals, adaptive=False):
-            """
-            Extend the fitting recipe with rigid body restraints based on bonds, angles, and dihedrals.
-    
-            Parameters:
-            - constrain_bonds: Tuple (Boolean, Float), enable bond constraints and specify the sigma for bond restraint.
-            - constrain_angles: Tuple (Boolean, Float), enable angle constraints and specify the sigma for angle restraint.
-            - constrain_dihedrals: Tuple (Boolean, Float), enable dihedral constraints.
-            - adaptive: Boolean, if True, recalculate bond vectors dynamically based on the current structure.
-    
-            Returns:
-            - fit: Updated FitRecipe object with added constraints.
-            """
-            print("\n--------------------------------------")
-            print("[INFO] Adding constraints on bonds, angles, and dihedrals")
-            print("--------------------------------------")
-    
-            for i, phase in enumerate(self.cpdf._generators):
-                phase_key = str(phase)
-    
-                # Retrieve or recalculate bond vectors using the analyzer
-                if not adaptive:
-                    bond_vectors = self.global_bond_vectors[phase_key]
-                else:
-                    bond_vectors = self.analyzer.get_polyhedral_bond_vectors(getattr(self.cpdf, phase).phase)
-    
-                # Use the analyzer for all geometric calculations
-                edge_bonds = self.analyzer.detect_edge_bonds(bond_vectors, threshold=0.005)
-                bond_pairs = self.analyzer.find_bond_pairs(bond_vectors, self.added_params[phase_key])
-                angle_triplets = self.analyzer.find_angle_triplets(bond_pairs)
-                dihedral_quadruplets = self.analyzer.find_dihedral_quadruplets(bond_pairs)
-    
-                # Use the analyzer to generate constraint expressions
-                constrain_dict_bonds = self.analyzer.create_constrain_expressions_for_bonds(bond_pairs, phase_key)
-                constrain_dict_angles = self.analyzer.create_constrain_expressions_for_angles(angle_triplets, phase_key)
-                constrain_dict_dihedrals = self.analyzer.create_constrain_expressions_for_dihedrals(dihedral_quadruplets, phase_key)
-    
-                # --------------------------------------------------------------------
-                # BOND CONSTRAINTS
-                # --------------------------------------------------------------------
-                if constrain_bonds[0]:
-                    print("\n[INFO] Processing bond constraints...")
-                    # This complex logic is preserved from the original script
-                    shared_vertex_dict = {}
-                    centers  = [el for el,info in self.config.detailed_composition.items() if info.get('polyhedron_center')]
-                    vertices = [el for el,info in self.config.detailed_composition.items() if info.get('polyhedron_vertex')]
-    
-                    for var_name, data in constrain_dict_bonds.items():
-                        atom1_label, atom2_label = data['atoms']
-                        center_lbl, vertex_lbl = None, None
-                        if any(atom1_label.startswith(c) for c in centers) and any(atom2_label.startswith(v) for v in vertices):
-                            center_lbl, vertex_lbl = atom1_label, atom2_label
-                        elif any(atom2_label.startswith(c) for c in centers) and any(atom1_label.startswith(v) for v in vertices):
-                            center_lbl, vertex_lbl = atom2_label, atom1_label
-                        if vertex_lbl:
-                            shared_vertex_dict.setdefault(vertex_lbl, {'bond_vars': [], 'expressions': []})
-                            shared_vertex_dict[vertex_lbl]['bond_vars'].append(var_name)
-                            shared_vertex_dict[vertex_lbl]['expressions'].append(data['expression'])
-                    
-                    shared_vertex_dict = {v:info for v,info in shared_vertex_dict.items() if len(info['bond_vars']) == 2}
-    
-                    edge_bond_dict = {}
-                    for btype, blist in edge_bonds.items():
-                        for bond in blist:
-                            atom1_label = bond["atom1"]["label"]
-                            atom2_label = bond["atom2"]["label"]
-                            bond_var_name = f"bond_length_{atom1_label}_{atom2_label}_{phase_key}"
-                            edge_bond_dict.setdefault(atom2_label, []).append(bond_var_name)
-                    
-                    print(f"[INFO] Identified {sum(len(lst) for lst in edge_bond_dict.values())} edge bonds.")
-                    
-                    bond_vectors_current = self.analyzer.get_polyhedral_bond_vectors(getattr(self.cpdf, phase).phase)
-                    problematic_bonds_dict = {}
-                    for bond_type, blist in bond_vectors_current.items():
-                        if 'O-O' in bond_type: continue
-                        center_sym = bond_type.split('-')[0]
-                        cutoff = self.config.detailed_composition[center_sym]['cutoff']
-                        for bond in blist:
-                            if not (cutoff[0] <= bond['length'] <= cutoff[1]):
-                                bond_key = f"bond_length_{bond['atom1']['label']}_{bond['atom2']['label']}_{phase_key}"
-                                problematic_bonds_dict[bond_key] = bond
-                    
-                    print(f"[INFO] Detected {len(problematic_bonds_dict)} problematic bonds (outside cutoff).")
-    
-                    for var_name, data in constrain_dict_bonds.items():
-                        try:
-                            self.fit.newVar(var_name, tags=['bond_length'])
-                            self.fit.constrain(var_name, data['expression'])
-                            
-                            # decide sigma & bounds based on category
-                            if any(var_name in info['bond_vars'] for info in shared_vertex_dict.values()):
-                                category = "SHARED-VERTEX BOND"
-                                sigma = 1e-7
-                            elif any(var_name in bond_list for bond_list in edge_bond_dict.values()):
-                                category = "EDGE BOND"
-                                sigma = 1e-7
-                            elif var_name in problematic_bonds_dict:
-                                category = "PROBLEMATIC BOND"
-                                sigma = 1e-7
-                            else:
-                                category = "NORMAL BOND"
-                                sigma = constrain_bonds[1]
-                            
-                            rel_len = data['relative_length']
-                            lb, ub = 0.95 * rel_len, 1.05 * rel_len
-                            self.fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=sigma)
-                            print(f"[{category}] {var_name}: lb={lb:.6f}, ub={ub:.6f}, sigma={sigma}")
-                        except Exception as e:
-                            print(f"[WARNING] Skipped {var_name} due to error: {e}")
-    
-                # --------------------------------------------------------------------
-                # ANGLE CONSTRAINTS
-                # --------------------------------------------------------------------
-                if constrain_angles[0]:
-                    print("\n[INFO] Processing angle constraints...")
-                    for var_name, data in constrain_dict_angles.items():
-                        try:
-                            ang_limit = 1.0
-                            self.fit.newVar(var_name, tags=['bond_angle'])
-                            self.fit.constrain(var_name, data['expression'])
-                            lb = np.radians(data['angle'] - ang_limit)
-                            ub = np.radians(data['angle'] + ang_limit)
-                            self.fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=constrain_angles[1])
-                            print(f"[INFO] {var_name}: angle={data['angle']:.2f}° (±{ang_limit}°)")
-                        except Exception as e:
-                            print(f"[WARNING] Skipped angle {var_name} due to error: {e}")
-    
-                # --------------------------------------------------------------------
-                # DIHEDRAL CONSTRAINTS
-                # --------------------------------------------------------------------
-                if constrain_dihedrals[0]:
-                    print("\n[INFO] Processing dihedral angle constraints...")
-                    for var_name, data in constrain_dict_dihedrals.items():
-                        try:
-                            ang_limit = 2.0
-                            self.fit.newVar(var_name, tags=['dihedral_angle'])
-                            self.fit.constrain(var_name, data['expression'])
-                            lb = np.radians(data['angle'] - ang_limit)
-                            ub = np.radians(data['angle'] + ang_limit)
-                            self.fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=constrain_dihedrals[1])
-                            print(f"[INFO] {var_name}: dihedral={data['angle']:.2f}° (±{ang_limit}°)")
-                        except Exception as e:
-                            print(f"[WARNING] Skipped dihedral {var_name} due to error: {e}")
-    
-                # --------------------------------------------------------------------
-                # Cleanup: Remove variables that are None and provide detailed debug info
-                # --------------------------------------------------------------------
-                for name in dir(self.fit):
-                    if name.startswith(('bond_length_', 'angle_', 'dihedral_')):
-                        try:
-                            var = getattr(self.fit, name)
-                            if var.value is None:
-                                # --- Start of new detailed error reporting ---
-                                print(f"\n[DEBUG INFO] Found invalid value for '{name}'.")
-                                parts = name.split('_')
-                                var_type = parts[0]
-                                phase_name = parts[-1]
-                                atom_labels = parts[1:-1]
+        """
+        Applies geometric restraints to bonds, angles, and dihedrals.
+        
+        This method enhances a structural refinement by applying soft restraints
+        to maintain chemically plausible geometries. Rather than enforcing rigid
+        constraints, it adds a penalty to the fit's cost function if bond
+        lengths, angles, or dihedrals deviate from their expected values. This
+        is essential for stabilizing refinements of complex, disordered, or
+        low-resolution structures where atomic positions might otherwise drift
+        into unrealistic configurations.
+        
+        The function dynamically identifies bonds, angles, and dihedrals, creates
+        corresponding variables in the `FitRecipe`, and then applies a `restrain`
+        call with specified bounds and a sigma value, which controls the
+        "stiffness" of the restraint.
+        
+        Args:
+        constrain_bonds (tuple[bool, float]):
+            A tuple to control bond restraints. The first element is a
+            **boolean** to enable or disable them. The second is a **float**
+            specifying the default `sigma` (standard deviation), which
+            determines how strongly the bond lengths are restrained. A
+            smaller sigma means a stronger restraint.
+        constrain_angles (tuple[bool, float]):
+            A tuple to control angle restraints. The first element is a
+            **boolean** to enable or disable them. The second is a **float**
+            for the `sigma` value applied to all bond angle restraints.
+        constrain_dihedrals (tuple[bool, float]):
+            A tuple to control dihedral angle restraints. The first element
+            is a **boolean** to enable or disable them. The second is a **float**
+            for the `sigma` value applied to all dihedral restraints.
+        adaptive (bool, optional):
+            If `True`, the underlying bond vectors and geometries are
+            recalculated at the start of this function based on the current
+            state of the structure in the recipe. If `False` (default), it
+            uses a pre-calculated, globally stored set of bond vectors.
+        
+        Returns:
+            diffpy.srfit.fit.FitRecipe:
+                The updated `FitRecipe` object containing the newly added
+                restraint variables and expressions.
+        """
+        
+        print("\n--------------------------------------")
+        print("[INFO] Adding constraints on bonds, angles, and dihedrals")
+        print("--------------------------------------")
 
-                                try:
-                                    # Get the structure and create an atom lookup map
-                                    phase_generator = getattr(self.cpdf, phase_name)
-                                    structure = phase_generator.phase.stru
-                                    atom_map = {atom.label: atom for atom in structure}
+        for i, phase in enumerate(self.cpdf._generators):
+            phase_key = str(phase)
 
-                                    print(f"  Atom Coordinates in Phase '{phase_name}':")
-                                    atom_objects = [atom_map.get(label) for label in atom_labels]
-                                    
-                                    if any(atom is None for atom in atom_objects):
-                                        print("  Could not find all atoms for this variable.")
-                                    else:
-                                        for atom in atom_objects:
-                                            print(f"    - {atom.label}: ({atom.x:.6f}, {atom.y:.6f}, {atom.z:.6f})")
+            # Retrieve or recalculate bond vectors using the analyzer
+            if not adaptive:
+                bond_vectors = self.global_bond_vectors[phase_key]
+            else:
+                bond_vectors = self.analyzer.get_polyhedral_bond_vectors(getattr(self.cpdf, phase).phase)
 
-                                        # Attempt a robust recalculation for angles
-                                        if var_type == 'angle' and len(atom_objects) == 3:
-                                            p0 = np.array([atom_objects[0].x, atom_objects[0].y, atom_objects[0].z])
-                                            p1 = np.array([atom_objects[1].x, atom_objects[1].y, atom_objects[1].z])
-                                            p2 = np.array([atom_objects[2].x, atom_objects[2].y, atom_objects[2].z])
+            # Use the analyzer for all geometric calculations
+            edge_bonds = self.analyzer.detect_edge_bonds(bond_vectors, threshold=0.005)
+            bond_pairs = self.analyzer.find_bond_pairs(bond_vectors, self.added_params[phase_key])
+            angle_triplets = self.analyzer.find_angle_triplets(bond_pairs)
+            dihedral_quadruplets = self.analyzer.find_dihedral_quadruplets(bond_pairs)
 
-                                            # Get lattice to convert to Cartesian for accurate angle
-                                            phase = phase_generator.phase
-                                            lat = phase.lattice
-                                            lattice_mat = self.analyzer._lattice_vectors(lat.a.value, lat.b.value, lat.c.value, lat.alpha.value, lat.beta.value, lat.gamma.value)
+            # Use the analyzer to generate constraint expressions
+            constrain_dict_bonds = self.analyzer.create_constrain_expressions_for_bonds(bond_pairs, phase_key)
+            constrain_dict_angles = self.analyzer.create_constrain_expressions_for_angles(angle_triplets, phase_key)
+            constrain_dict_dihedrals = self.analyzer.create_constrain_expressions_for_dihedrals(dihedral_quadruplets, phase_key)
 
-                                            # Angle is at the central atom (p1)
-                                            v1 = lattice_mat.dot(p0 - p1)
-                                            v2 = lattice_mat.dot(p2 - p1)
-                                            
-                                            robust_angle = self.analyzer.calculate_angle(v1, v2)
-                                            print(f"  Robust Recalculation: {robust_angle:.4f} degrees.")
-                                            if np.isclose(robust_angle, 0.0) or np.isclose(robust_angle, 180.0):
-                                                print("  📌 Likely Cause: Atoms are nearly collinear, causing the arccos() calculation to fail.")
+            # --------------------------------------------------------------------
+            # BOND CONSTRAINTS
+            # --------------------------------------------------------------------
+            if constrain_bonds[0]:
+                print("\n[INFO] Processing bond constraints...")
+                # This complex logic is preserved from the original script
+                shared_vertex_dict = {}
+                centers  = [el for el,info in self.config.detailed_composition.items() if info.get('polyhedron_center')]
+                vertices = [el for el,info in self.config.detailed_composition.items() if info.get('polyhedron_vertex')]
 
-                                except Exception as e_debug:
-                                    print(f"  Could not retrieve full debug info: {e_debug}")
-                                # --- End of new detailed error reporting ---
+                for var_name, data in constrain_dict_bonds.items():
+                    atom1_label, atom2_label = data['atoms']
+                    center_lbl, vertex_lbl = None, None
+                    if any(atom1_label.startswith(c) for c in centers) and any(atom2_label.startswith(v) for v in vertices):
+                        center_lbl, vertex_lbl = atom1_label, atom2_label
+                    elif any(atom2_label.startswith(c) for c in centers) and any(atom1_label.startswith(v) for v in vertices):
+                        center_lbl, vertex_lbl = atom2_label, atom1_label
+                    if vertex_lbl:
+                        shared_vertex_dict.setdefault(vertex_lbl, {'bond_vars': [], 'expressions': []})
+                        shared_vertex_dict[vertex_lbl]['bond_vars'].append(var_name)
+                        shared_vertex_dict[vertex_lbl]['expressions'].append(data['expression'])
+                
+                shared_vertex_dict = {v:info for v,info in shared_vertex_dict.items() if len(info['bond_vars']) == 2}
 
-                                self.fit.unconstrain(var)
-                                self.fit.delVar(var)
-                                print(f"[INFO] Removed '{name}' due to the issue detailed above.\n")
-                        except Exception:
-                            continue
+                edge_bond_dict = {}
+                for btype, blist in edge_bonds.items():
+                    for bond in blist:
+                        atom1_label = bond["atom1"]["label"]
+                        atom2_label = bond["atom2"]["label"]
+                        bond_var_name = f"bond_length_{atom1_label}_{atom2_label}_{phase_key}"
+                        edge_bond_dict.setdefault(atom2_label, []).append(bond_var_name)
+                
+                print(f"[INFO] Identified {sum(len(lst) for lst in edge_bond_dict.values())} edge bonds.")
+                
+                bond_vectors_current = self.analyzer.get_polyhedral_bond_vectors(getattr(self.cpdf, phase).phase)
+                problematic_bonds_dict = {}
+                for bond_type, blist in bond_vectors_current.items():
+                    if 'O-O' in bond_type: continue
+                    center_sym = bond_type.split('-')[0]
+                    cutoff = self.config.detailed_composition[center_sym]['cutoff']
+                    for bond in blist:
+                        if not (cutoff[0] <= bond['length'] <= cutoff[1]):
+                            bond_key = f"bond_length_{bond['atom1']['label']}_{bond['atom2']['label']}_{phase_key}"
+                            problematic_bonds_dict[bond_key] = bond
+                
+                print(f"[INFO] Detected {len(problematic_bonds_dict)} problematic bonds (outside cutoff).")
+
+                for var_name, data in constrain_dict_bonds.items():
+                    try:
+                        self.fit.newVar(var_name, tags=['bond_length'])
+                        self.fit.constrain(var_name, data['expression'])
+                        
+                        # decide sigma & bounds based on category
+                        if any(var_name in info['bond_vars'] for info in shared_vertex_dict.values()):
+                            category = "SHARED-VERTEX BOND"
+                            sigma = 1e-7
+                        elif any(var_name in bond_list for bond_list in edge_bond_dict.values()):
+                            category = "EDGE BOND"
+                            sigma = 1e-7
+                        elif var_name in problematic_bonds_dict:
+                            category = "PROBLEMATIC BOND"
+                            sigma = 1e-7
+                        else:
+                            category = "NORMAL BOND"
+                            sigma = constrain_bonds[1]
+                        
+                        rel_len = data['relative_length']
+                        lb, ub = 0.95 * rel_len, 1.05 * rel_len
+                        self.fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=sigma)
+                        print(f"[{category}] {var_name}: lb={lb:.6f}, ub={ub:.6f}, sigma={sigma}")
+                    except Exception as e:
+                        print(f"[WARNING] Skipped {var_name} due to error: {e}")
+
+            # --------------------------------------------------------------------
+            # ANGLE CONSTRAINTS
+            # --------------------------------------------------------------------
+            if constrain_angles[0]:
+                print("\n[INFO] Processing angle constraints...")
+                for var_name, data in constrain_dict_angles.items():
+                    try:
+                        ang_limit = 1.0
+                        self.fit.newVar(var_name, tags=['bond_angle'])
+                        self.fit.constrain(var_name, data['expression'])
+                        lb = np.radians(data['angle'] - ang_limit)
+                        ub = np.radians(data['angle'] + ang_limit)
+                        self.fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=constrain_angles[1])
+                        print(f"[INFO] {var_name}: angle={data['angle']:.2f}° (±{ang_limit}°)")
+                    except Exception as e:
+                        print(f"[WARNING] Skipped angle {var_name} due to error: {e}")
+
+            # --------------------------------------------------------------------
+            # DIHEDRAL CONSTRAINTS
+            # --------------------------------------------------------------------
+            if constrain_dihedrals[0]:
+                print("\n[INFO] Processing dihedral angle constraints...")
+                for var_name, data in constrain_dict_dihedrals.items():
+                    try:
+                        ang_limit = 2.0
+                        self.fit.newVar(var_name, tags=['dihedral_angle'])
+                        self.fit.constrain(var_name, data['expression'])
+                        lb = np.radians(data['angle'] - ang_limit)
+                        ub = np.radians(data['angle'] + ang_limit)
+                        self.fit.restrain(var_name, lb=lb, ub=ub, scaled=True, sig=constrain_dihedrals[1])
+                        print(f"[INFO] {var_name}: dihedral={data['angle']:.2f}° (±{ang_limit}°)")
+                    except Exception as e:
+                        print(f"[WARNING] Skipped dihedral {var_name} due to error: {e}")
+
+            # --------------------------------------------------------------------
+            # Cleanup: Remove variables that are None and provide detailed debug info
+            # --------------------------------------------------------------------
+            for name in dir(self.fit):
+                if name.startswith(('bond_length_', 'angle_', 'dihedral_')):
+                    try:
+                        var = getattr(self.fit, name)
+                        if var.value is None:
+                            # --- Start of new detailed error reporting ---
+                            print(f"\n[DEBUG INFO] Found invalid value for '{name}'.")
+                            parts = name.split('_')
+                            var_type = parts[0]
+                            phase_name = parts[-1]
+                            atom_labels = parts[1:-1]
+
+                            try:
+                                # Get the structure and create an atom lookup map
+                                phase_generator = getattr(self.cpdf, phase_name)
+                                structure = phase_generator.phase.stru
+                                atom_map = {atom.label: atom for atom in structure}
+
+                                print(f"  Atom Coordinates in Phase '{phase_name}':")
+                                atom_objects = [atom_map.get(label) for label in atom_labels]
+                                
+                                if any(atom is None for atom in atom_objects):
+                                    print("  Could not find all atoms for this variable.")
+                                else:
+                                    for atom in atom_objects:
+                                        print(f"    - {atom.label}: ({atom.x:.6f}, {atom.y:.6f}, {atom.z:.6f})")
+
+                                    # Attempt a robust recalculation for angles
+                                    if var_type == 'angle' and len(atom_objects) == 3:
+                                        p0 = np.array([atom_objects[0].x, atom_objects[0].y, atom_objects[0].z])
+                                        p1 = np.array([atom_objects[1].x, atom_objects[1].y, atom_objects[1].z])
+                                        p2 = np.array([atom_objects[2].x, atom_objects[2].y, atom_objects[2].z])
+
+                                        # Get lattice to convert to Cartesian for accurate angle
+                                        phase = phase_generator.phase
+                                        lat = phase.lattice
+                                        lattice_mat = self.analyzer._lattice_vectors(lat.a.value, lat.b.value, lat.c.value, lat.alpha.value, lat.beta.value, lat.gamma.value)
+
+                                        # Angle is at the central atom (p1)
+                                        v1 = lattice_mat.dot(p0 - p1)
+                                        v2 = lattice_mat.dot(p2 - p1)
+                                        
+                                        robust_angle = self.analyzer.calculate_angle(v1, v2)
+                                        print(f"  Robust Recalculation: {robust_angle:.4f} degrees.")
+                                        if np.isclose(robust_angle, 0.0) or np.isclose(robust_angle, 180.0):
+                                            print("  📌 Likely Cause: Atoms are nearly collinear, causing the arccos() calculation to fail.")
+
+                            except Exception as e_debug:
+                                print(f"  Could not retrieve full debug info: {e_debug}")
+                            # --- End of new detailed error reporting ---
+
+                            self.fit.unconstrain(var)
+                            self.fit.delVar(var)
+                            print(f"[INFO] Removed '{name}' due to the issue detailed above.\n")
+                    except Exception:
+                        continue
 
 
     def copy_phase_structure(self, cpdf_target, cpdf_source, phase_index=0):
         """
-        Copy x,y,z positions of matching atoms from cpdf_source to cpdf_target
-        for a given phase (default Phase0), printing each change.
-
-        Parameters
-        ----------
-        cpdf_target : PDFContribution
-            The “main” PDFContribution you want to update.
-        cpdf_source : PDFContribution
-            The PDFContribution containing the special (refined) structure.
-        phase_index : int, optional
-            Which phase to copy (0 → "Phase0", 1 → "Phase1", …).
+        Copies atomic xyz coordinates between matching atoms of a specific phase.
+    
+        This function selectively updates the atomic positions (`x`, `y`, `z`) in a
+        target structure (`cpdf_target`) with values from a source structure
+        (`cpdf_source`). It operates on a single phase, identified by its index.
+    
+        The core of the function is its atom-matching mechanism, which relies on
+        assigning unique labels (e.g., 'O1', 'O2', 'Si1') to atoms in both
+        structures. It then iterates through the target atoms, and for each one
+        that has a matching label in the source, it copies the coordinates. This
+        allows for a precise transfer of positional information without affecting
+        other parameters like lattice constants or thermal parameters.
+    
+        Args:
+            cpdf_target (PDFContribution):
+                The `PDFContribution` object whose structure will be updated. This
+                object is modified in-place.
+            cpdf_source (PDFContribution):
+                The `PDFContribution` object that contains the source structure
+                from which coordinates will be read.
+            phase_index (int, optional):
+                The numerical index of the phase to copy within the
+                `PDFContribution` (e.g., 0 for "Phase0", 1 for "Phase1").
+                Defaults to 0.
+    
+        Returns:
+            None. The function modifies the `cpdf_target` object directly.
+    
+    
+        Notes:
+            - The function's success hinges on the `assignUniqueLabels()` method
+              generating corresponding labels for atoms in both structures. This
+              is generally reliable when the source and target structures have the
+              same composition and atom ordering.
         """
+        
+
         phase_name = f"Phase{phase_index}"
         gen_tgt = getattr(cpdf_target, phase_name)
         gen_src = getattr(cpdf_source, phase_name)
@@ -2343,24 +2317,36 @@ class PDFRefinement:
             
     def rebuild_contribution(self, old_cpdf, r_obs, g_obs, name='cpdf_rebuilt'):
         """
-        Build a new PDFContribution using the same Structure objects already present
-        in `old_cpdf`, instead of re‐loading from CIFs.
-
-        Parameters
-        ----------
-        old_cpdf : PDFContribution
-            An existing PDFContribution whose PDFGenerators hold refined structures
-            (accessible via `old_cpdf.PhaseX.phase.stru`).
-        r_obs, g_obs : numpy.ndarray
-            The new observed PDF data arrays (r and G(r)).
-        name : str, optional
-            Identifier for the new PDFContribution (default: "cpdf_rebuilt").
-
-        Returns
-        -------
-        PDFContribution
-            A fresh PDFContribution whose PDFGenerators each incorporate the exact
-            same `diffpy.Structure` objects from `old_cpdf`.
+        Rebuilds a PDFContribution using existing structures with new data.
+    
+        This function creates a new `PDFContribution` object. Instead of loading
+        structures from their original source files (e.g., CIFs), it extracts the
+        `Structure` objects directly from an existing `PDFContribution`. This is
+        a crucial operation in sequential analysis, as it preserves the exact
+        state of a structure (including atomic positions, lattice, etc.) after a
+        refinement.
+    
+    
+        Args:
+            old_cpdf (PDFContribution):
+                The source `PDFContribution` containing the refined structures
+                that will be copied and preserved.
+            r_obs (numpy.ndarray):
+                The new observed r-grid (independent variable) for the rebuilt
+                contribution.
+            g_obs (numpy.ndarray):
+                The new observed G(r) data (dependent variable) for the rebuilt
+                contribution.
+            name (str, optional):
+                A string identifier for the new `PDFContribution`. Defaults to
+                'cpdf_rebuilt'.
+    
+        Returns:
+            PDFContribution:
+                A new, fully configured `PDFContribution` instance. This object
+                contains independent copies of the structures from `old_cpdf` but
+                is associated with the new observed data and calculation settings
+                derived from the parent class instance.
         """
         cpdf_new = PDFContribution(name)
         cpdf_new.setScatteringType('X')
@@ -2454,9 +2440,22 @@ class PDFRefinement:
 
 
     def initialize_from_special_structure(self):
-        """
-        Checks config for a 'special_structure' and, if present, loads its
-        atomic positions into the specified phase of the main refinement model.
+        """Initializes model coordinates from an external structure file.
+    
+        This function acts as a specialized setup routine for a refinement
+        workflow. It checks the main configuration for a 'special_structure'
+        entry. If found, it reads the specified structure file (e.g., a CIF
+        from a previous refinement or a theoretical model) and uses it to
+        overwrite the initial atomic positions (`x`, `y`, `z`) of the
+        corresponding phase in the main refinement model (`self.cpdf`).
+    
+        This is particularly useful for starting a new analysis from a known
+        good starting point, bypassing the default structure loaded from the
+        standard input files.
+    
+        Returns:
+            None. The function modifies the instance's `self.cpdf` object
+            in-place.
         """
         if hasattr(self.config, 'special_structure'):
             print("\n---------------------------------------------------------")
@@ -2492,9 +2491,24 @@ class PDFRefinement:
                 print(f"[ERROR] An unexpected error occurred while loading the special structure: {e}")
     
     def _copy_atom_positions_from_structure(self, target_stru, source_stru):
-        """
-        Private helper to copy x,y,z positions from a source structure
-        to a target structure for atoms with matching labels.
+        """Copies atomic coordinates from a source to a target structure.
+
+        This private helper method performs an in-place update of the atomic
+        `x`, `y`, `z` coordinates in the `target_stru`. It works by matching
+        atoms between the source and target structures based on unique,
+        automatically generated labels (e.g., 'O1', 'Zr1'). For every atom in
+        the target that has a counterpart in the source, its coordinates are
+        overwritten.
+        
+        Args:
+            target_stru (diffpy.structure.Structure):
+                The structure object whose atomic coordinates will be modified
+                in-place.
+            source_stru (diffpy.structure.Structure):
+                The structure object from which the new coordinates will be read.
+        
+        Returns:
+            None.
         """
         # Create a lookup map from the source structure's atom labels to atoms
         source_stru.assignUniqueLabels()
@@ -2522,18 +2536,81 @@ class PDFRefinement:
     # # Simulate PDFs
     # # =============================================================================
     def simulate_pdf_workflow(self, main_config, sim_config):
-        """
-        Runs a self-contained simulation workflow.
-
-        This method takes a main configuration object for general parameters
-        and a dedicated simulation dictionary for specific settings. It handles
-        all aspects of the simulation, including creating the output directory,
-        injecting optimized parameters, and generating final plots and data.
-
-        Args:
-            main_config (RefinementConfig): The main project configuration object.
-            sim_config (dict): A dictionary with simulation-specific parameters.
-        """
+        """Runs a complete, self-contained PDF simulation workflow.
+        
+            This function orchestrates a full simulation process, distinct from a
+            refinement. Its purpose is to take a structural model (from a CIF file),
+            manually set all relevant physical parameters to specific, pre-defined
+            values, calculate the resulting theoretical PDF, and save all outputs.
+            This is ideal for generating theoretical patterns, testing the effect of
+            specific parameters, or creating a baseline model from known values.
+        
+            The workflow is data-driven, using a main configuration for global
+            settings and a dedicated simulation dictionary for the specific inputs,
+            parameters, and output locations.
+        
+            Args:
+                main_config (RefinementConfig):
+                    The main project configuration object, providing global settings
+                    like the path to the raw diffraction data, Qmax, r-range, etc.
+                sim_config (dict):
+                    A dictionary containing all parameters specific to this
+                    simulation run. It must have the following structure:
+                    {
+                        "output_path": str,  # Directory to save results.
+                        "powder_data_file": str,  # Raw data file (e.g., .xy) to get r-grid from.
+                        "cif_directory": str, # Path to the CIF file's directory.
+                        "ciffile": str,      # Filename of the CIF for the structure model.
+                        "fitting_range": tuple[float, float], # (rmin, rmax) for final evaluation.
+                        "csv_filename": str, # Name for the output data file.
+                        "optimized_params": {
+                            "Phase0": {      # A key for each phase (e.g., "Phase0")
+                                "s": float,      # Scale factor
+                                "psize": float,  # Nanoparticle size
+                                "delta2": float  # Step-function broadening
+                            },
+                            # ... other phases ...
+                        },
+                        "default_Uiso": {
+                            "Ti": float,     # Isotropic ADP for Titanium atoms
+                            "O": float,      # Isotropic ADP for Oxygen atoms
+                            # ... other elements ...
+                        }
+                    }
+        
+            Returns:
+                PDFContribution:
+                    The final, fully configured `PDFContribution` object containing the
+                    structure and all injected parameters used for the simulation.
+        
+            Side Effects:
+                - Creates the output directory specified in `sim_config` if it
+                  does not exist.
+                - Writes a CSV file containing the observed (from data), calculated
+                  (simulated), and difference profiles to the output directory.
+                - Generates and saves summary plots (e.g., bond lengths, angles)
+                  for each phase to the output directory.
+        
+            Example:
+                >>> # Assume 'workflow' is an instance of the parent class.
+                >>> main_config = load_main_config('project.yml')
+                >>> sim_settings = {
+                ...     "output_path": "./simulation_results/",
+                ...     "powder_data_file": "raw_data.xy",
+                ...     "cif_directory": "./structures/",
+                ...     "ciffile": "rutile_model.cif",
+                ...     "fitting_range": (1.0, 20.0),
+                ...     "csv_filename": "simulated_rutile.csv",
+                ...     "optimized_params": {
+                ...         "Phase0": {"s": 0.95, "psize": 150.0, "delta2": 2.1}
+                ...     },
+                ...     "default_Uiso": {"Ti": 0.005, "O": 0.007}
+                ... }
+                >>>
+                >>> final_model = workflow.simulate_pdf_workflow(main_config, sim_settings)
+                >>> # This will create the './simulation_results' directory and populate
+                >>> # it with 'simulated_rutile.csv' and various structural plots.
+            """
         print("\n==========================================================")
         print("           STARTING PDF SIMULATION WORKFLOW           ")
         print("==========================================================")
