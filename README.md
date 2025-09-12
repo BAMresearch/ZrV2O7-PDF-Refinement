@@ -14,18 +14,25 @@ License: MIT License
 
 ## Overview
 
-This repository contains Python scripts specifically developed for structural refinement of Zirconium Vanadate (ZrV₂O₇), a material known for its negative thermal expansion (NTE). The scripts implement Pair Distribution Function (PDF) analysis to refine crystal structures directly from experimental X-ray diffraction (XRD) data. The refinement workflow is built around the DiffPy-CMI library, enhanced with custom functionalities tailored for ZrV₂O₇ and similar oxide materials.
+This repository contains object-oriented Python scripts specifically developed for structural refinement of Zirconium Vanadate (ZrV₂O₇), a material known for its negative thermal expansion (NTE). The scripts implement Pair Distribution Function (PDF) analysis to refine crystal structures directly from experimental X-ray diffraction (XRD) data. The refinement workflow is built around the DiffPy-CMI library, enhanced with custom functionalities tailored for ZrV₂O₇ and similar oxide materials.
 
 The primary capabilities and key technical details of the scripts include:
+
+- **Configuration-Driven Refinement Plan:** 
+  The workflow is directed by a user-defined plan specifying a sequence of refinement steps, each with its own set of parameters.
+
+- **Sequential Dataset Analysis:** 
+  The framework can process a list of datasets in order, using the output of one refinement as the starting model for the next. It performs stepwise optimization of lattice parameters, atomic coordinates, atomic displacement parameters (ADPs), oxygen occupancy, and nanoscale domain sizes (using characteristic functions). Optimization is carried out using robust gradient-based minimization algorithms (e.g., L-BFGS-B), carefully managing parameter constraints and refinement order to achieve stable convergence.
+
+
+- **State Checkpointing**: 
+  The refinement state is saved after each major step, allowing the workflow to be resumed after an interruption.
 
 - **Rigid-body Constraints and Connectivity-based Refinement:**  
   Incorporates physically-informed rigid-body restraints based on well-defined polyhedral connectivity. This includes explicit constraints on bond lengths and angles within ZrO₆ octahedra and VO₄ tetrahedra, ensuring structural parameters remain physically realistic and chemically sensible.
 
 - **Adaptive Space-group Symmetry Switching:**  
   Provides functionality to easily transition between different space-group settings (e.g., from higher symmetry groups such as Pa-3 to lower symmetry groups like P213, P23, and ultimately P1). This capability allows the systematic exploration of potential symmetry-breaking structural distortions or subtle symmetry variations typical of NTE materials.
-
-- **Sequential and Iterative Optimization Workflow:**  
-  Performs stepwise optimization of lattice parameters, atomic coordinates, atomic displacement parameters (ADPs), oxygen occupancy, and nanoscale domain sizes (using characteristic functions). Optimization is carried out using robust gradient-based minimization algorithms (e.g., L-BFGS-B), carefully managing parameter constraints and refinement order to achieve stable convergence.
 
 - **Parallelized PDF Calculations:**  
   Implements parallel processing using Python’s multiprocessing capabilities, optimizing performance during the calculation of PDF patterns from structural models. This significantly accelerates refinement for large datasets or complex structural models.
@@ -41,7 +48,9 @@ The primary capabilities and key technical details of the scripts include:
 - **Detailed Logging and Reporting:**  
   Automatically logs each refinement step, including parameter adjustments, convergence criteria, refinement ranges, and space-group transitions. This functionality ensures reproducibility and facilitates detailed analysis of refinement pathways.
 
-These scripts are specifically tailored to address the structural complexities inherent in NTE materials, providing comprehensive and reliable structural refinements optimized for ZrV₂O₇ and similar complex oxide systems.
+- **Structured Output Generation:** 
+  The script generates an organized set of outputs for each step, including refined CIF files, fit plots, data files, and summary reports.
+
 
 ---
 
@@ -100,57 +109,128 @@ For more information about PDFgetX3, visit [DiffPy PDFgetX3](https://www.diffpy.
 
 ---
 ## Usage
+The framework is architected with a clear separation of concerns into two primary scripts.
 
-This section describes how to set up your inputs and explains step-by-step the refinement procedure as implemented in `sample_refinement.py`.
+_sample_refinement_vXX_classes.py:_ This file is the core engine of the framework. It contains all the Python classes that handle configuration, PDF generation, structural analysis, results management, and the high-level workflow orchestration. You should not need to modify this file.
+
+_sample_refinement_vXX_execution.py:_ This is the user-facing script. You configure and run your analysis from here. It is responsible for defining all parameters, setting up the refinement plan, and initiating the workflow.
 
 ---
 
 ### Project and Data Inputs
 
-All inputs are specified at the end of `sample_refinement.py`. Adjust these variables according to your experimental data and desired refinement approach.
+All aspects of the refinement are controlled by the `project_config` dictionary within the `sample_refinement_vXX_execution.py` script. Below is a detailed breakdown of the key parameters you will need to set.
 
 Example input definitions from the script:
 
 ```python
-# Project and directories
-project_name = 'OneZirconiumVanadate105C/'
-xrd_directory = 'data/'        # Directory containing diffraction or PDF data
-cif_directory = 'CIFs/'        # Directory with structure CIF files
-fit_directory = 'fits/'        # Directory for refinement outputs
 
-# Experimental XRD data filename
-mypowderdata = 'PDF_ZrV2O7_061_105C_avg_246_265_00000.dat'
+project_config = {
+    # 1. Project and File Paths
+    'project_name': 'ZirconiumVanadate_Refinement/', # A name for the overall project
+    'xrd_directory': 'data/',        # Folder containing your experimental PDF data files
+    'cif_directory': 'CIFs/',        # Folder for your initial structural model (.cif) files
+    'fit_directory': 'fits/',        # Root directory where all outputs will be saved
 
-# Chemical composition for PDF generation
-composition = 'O7 V2 Zr1'
+    # 2. Datasets to Process
+    # A list of experimental data files to be processed in sequence.
+    'dataset_list': [
+        'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
+        'PDF_ZrV2O7_061_60C_avg_66_85_00000.dat'
+    ],
 
-# Structural phases to refine (CIF files and corresponding symmetry)
-ciffile = {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]}
+    # 3. Structural Model
+    # Defines the initial crystal structure model(s).
+    # Format: {'cif_filename': [space_group, is_periodic, supercell_expansion]}
+    'ciffile': {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]},
+    'composition': 'O7 V2 Zr1', # Stoichiometry, used for PDF calculation
 
-# Instrument parameters (from calibration or instrument profile)
-qdamp = 2.70577268e-02     # Instrumental damping factor
-qbroad = 2.40376789e-06    # Instrumental broadening factor
+    # Provides detailed information for each element, used for geometric analysis
+    # and setting initial Atomic Displacement Parameters (ADPs).
+    'detailed_composition': {
+        'Zr': {'symbol': 'Zr', 'Uiso': 0.0065, 'polyhedron_center': True, 'cutoff': (1.8, 2.2)},
+        'V':  {'symbol': 'V',  'Uiso': 0.0100, 'polyhedron_center': True, 'cutoff': (1.5, 2.4)},
+        'O':  {'symbol': 'O',  'Uiso': 0.0250, 'polyhedron_vertex': True},
+    },
 
-# Atomic displacement parameters (ADPs)
-anisotropic = False        # Use isotropic ADPs (True if anisotropic ADPs desired)
-unified_Uiso = True        # Same Uiso values for atoms of the same element
+    # 4. Instrumental and PDF Calculation Parameters
+    'qmax': 22.0,                   # Maximum scattering vector (Å⁻¹) for the Fourier transform
+    'qdamp': 2.70577268e-02,        # Instrumental resolution damping factor (from calibration)
+    'qbroad': 2.40376789e-06,       # Instrumental resolution broadening factor (from calibration)
+    'myrange': (0.0, 80.0),         # The full r-range (Å) for PDF calculation
+    'myrstep': 0.05,                # Step size (Å) for the r-grid
 
-# Space group symmetry offset (usually [0,0,0])
-sgoffset = [0.0, 0.0, 0.0]
+    # 5. Refinement Control
+    # Controls how Atomic Displacement Parameters (ADPs) are handled.
+    'anisotropic': False,           # Set to True to refine anisotropic ADPs
+    'unified_Uiso': True,           # If True, all atoms of the same element share one Uiso value
 
-# PDF calculation and refinement parameters
-myrange = (0.0, 80)        # Range for PDF calculation (in Å)
-myrstep = 0.05             # Step size for r-axis in PDF
+    # Advanced settings for the optimization algorithm.
+    'convergence_options': {'disp': True},
+    
+    # 6. Checkpoint & Logging
+    'checkpoint_directory': 'fits/ZirconiumVanadate_Refinement/checkpoints/',
+    'log_file': 'refinement_log.txt',
+}
+```
+In the same file, define your multi-step refinement strategy in the `refinement_plan` dictionary. Each step is an entry in the dictionary, specifying the symmetry, constraints, and fitting procedure for that stage.
 
-# Optimization convergence criteria
-convergence_options = {'disp': True}
+```python
+refinement_plan = {
+    # Step 0: Initial refinement in high-symmetry space group
+    0: {
+        'description': 'Initial fit with Pa-3 symmetry',
+        'space_group': ['Pa-3'],
+        'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001)},
+        'fitting_range': [1.5, 27],
+        'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    },
+    # Step 1: Reduce symmetry and refine again
+    1: {
+        'description': 'Symmetry reduction to P1 with tight constraints',
+        'space_group': ['P1'],
+        'constraints': {'constrain_bonds': (True, 0.0001), 'constrain_angles': (True, 0.0001)},
+        'fitting_range': [1.5, 27],
+        'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    }
+}
+```
+For the very first dataset in a sequence, you can provide a "special structure" (e.g., a CIF file from a previous experiment) to be used as a better starting point than the original CIF. This is configured in project_config:
+```python
+project_config = {
+    # ... other settings
+    'special_structure': {
+        'file_path': 'fits/path/to/your/previous_result.cif',
+        'phase_index_to_update': 0 
+    },
+}
 ```
 
+The framework can also run in a simulation-only mode to generate a theoretical PDF from a known set of parameters. This is useful for validating a final structure or understanding the effect of specific parameters. Configure the simulation_data dictionary in the execution script and uncomment the final call to workflow_orchestrator.simulate_pdf_workflow().
+
+```python
+simulation_data = {
+    'cif_directory': 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/',
+    'ciffile': {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]},
+    'powder_data_file': 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
+    'output_path': 'resultsSimulations/25C_Phase0_6',
+    'optimized_params': {
+        'Phase0': {'s': 4.92399836e-01, 'psize': 2.66658626e+02, 'delta2': 2.53696631e+00}
+    },
+    'default_Uiso': {
+        'Zr': 5.79086780e-04,
+        'V': 3.21503909e-03,
+        'O': 7.21519003e-03
+    },
+    'fitting_range': [1.5, 27],
+    'csv_filename': 'sim_vs_obs.csv'
+}
+```
 
 ---
 ## Usage and Fitting Procedure
 
-This section describes the detailed workflow implemented in `sample_refinement.py` for structural refinement of Zirconium Vanadate (ZrV₂O₇) from PDF data. The script is capable of refining single-phase structures and can be adapted for multi-phase systems with additional adjustments.
+This section describes the detailed workflow for structural refinement of Zirconium Vanadate (ZrV₂O₇) from PDF data. The script is capable of refining single-phase structures and can be adapted for multi-phase systems with additional adjustments.
 
 ---
 
@@ -261,182 +341,6 @@ constrain_angles = (True, 0.001)     # Enable angle constraints with σ = 0.001
 constrain_dihedrals = (False, 0.001) # Dihedral constraints disabled by default
 ```
 
-### Using Optimized Structures as Starting Models
-
-Building on an existing refinement allows you to avoid restarting from the original CIF each time. Reusing a previously refined `FitRecipe` and its underlying `PDFContribution` accelerates convergence and ensures continuity across sequential refinements.
-
-- **Why use it?**  
-  - Reduces redundant parameter fitting when tuning additional restraints or extending the PDF range.  
-  - Maintains chemically sensible starting geometry and ADP values from prior runs.  
-  - Facilitates ‘warm‐start’ strategies in iterative workflows (e.g., temperature ramp studies).
-
-- **Key functions and parameters:**  
-  - `rebuild_cpdf(old_cpdf, r_obs, g_obs, r_range, r_step, ncpu, pool)`  
-    - Clones all structural and instrument parameters but points to new experimental data arrays (`r_obs`, `g_obs`).  
-  - `refinement_basic_with_initial(fit_old, cpdf_new, spaceGroups, anisotropic, unified_Uiso, sgoffset, recalculate_bond_vectors)`  
-    - Accepts an existing `FitRecipe` (`fit_old`) and instantiates a new recipe with identical parameter bounds, starting values, and phase definitions.  
-    - **Arguments:**  
-      - `spaceGroups` (list of str): space‐group path for symmetry exploration.  
-      - `anisotropic` (bool): whether to include anisotropic ADPs.  
-      - `unified_Uiso` (bool): toggle unified vs. individual isotropic ADPs.  
-      - `sgoffset` (tuple): fractional shifts to apply to atomic coordinates.  
-      - `recalculate_bond_vectors` (bool): recompute pair‐vectors for rigid‐body constraints.
-
-```python
-# Warm start: rebuild from previous run
-cpdf_new = rebuild_cpdf(
-    cpdf_old,
-    r_obs,        # new r-array for this dataset
-    g_obs,        # new G(r)
-    myrange,      # r-min and r-max
-    myrstep,      # step size
-    ncpu,         # parallel jobs
-    pool          # multiprocessing pool
-)
-
-fit_new = refinement_basic_with_initial(
-    fit_old,
-    cpdf_new,
-    spaceGroups=['Pa-3', 'P213'],
-    anisotropic=False,
-    unified_Uiso=True,
-    sgoffset=[0.0,0.0,0.0],
-    recalculate_bond_vectors=True
-)
-
-# Optionally tighten constraints, then launch refinement
-fit_new = refinement_RigidBody(
-    fit_new,
-    cpdf_new,
-    constrain_bonds=(True, 0.001),
-    constrain_angles=(True, 0.001)
-)
-fit_me(
-    iterations=7,
-    bounds=[1.5, 27],
-    drstep=myrstep,
-    variables=['lat','scale','xyz'],
-    recipe=fit_new,
-    contribution=cpdf_new,
-    label='revisited_run',
-    output_path='results/'
-)
-```
-
-### Transferring Data Among Fitting Objects
-
-In complex studies (e.g., temperature‐dependent PDF series or multi‐phase mixtures), it is often desirable to import atomic coordinates, occupancies, or ADPs from one model into another. This feature automates that hands‐off.
-
-- **Use cases:**  
-  - Propagate refined coordinates from a high‐quality dataset into a lower‐resolution dataset to stabilize fits.  
-  - Share phase definitions between multi‐phase recipes without manual CIF editing.  
-  - Apply identical occupancy or thermal parameter sets across related runs.
-
-- **Main API call:**  
-  ```python
-  copy_phase_structure(
-      target_cpdf,
-      source_cpdf,
-      phase_index=0,
-      copy_adp=True,
-      copy_occ=True
-  )
-  ```  
-  - `phase_index` (int): zero‐based index of the phase in `source_cpdf` to copy.  
-  - `copy_adp` / `copy_occ` (bool): toggle whether to transfer atomic displacement parameters and occupancies.
-
-```python
-from sample_refinement import copy_phase_structure
-
-# Example: import Phase0 from a well‐refined run into the main recipe
-copy_phase_structure(
-    target_cpdf=cpdf_main,
-    source_cpdf=cpdf_refined,
-    phase_index=0,
-    copy_adp=True,
-    copy_occ=False
-)
-
-# Continue with a fresh basic refinement, now seeded with updated geometry + ADPs
-fit_main = refinement_basic(
-    cpdf_main,
-    anisotropic=False,
-    unified_Uiso=True
-)
-fit_me(5, [2.0, 25], myrstep, ['lat','xyz'], fit_main, cpdf_main, 'seeded_multi', 'fits/')
-```
-
-These additions eliminate manual CIF handling and ensure consistency across iterative or comparative PDF refinements.
-
-## Simulation Workflow
-
-The repository also supports a dedicated simulation workflow for generating theoretical PDFs from optimized structures and comparing them to experimental data. You can run simulations with custom parameters directly in Python:
-
-```python
-# =============================================================================
-# Run simulation workflow with specific parameters (using original code variables)
-# =============================================================================
-
-# CIF files for simulation
-cif_directory = 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/'
-ciffile       = {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]}
-
-# Experimental PDF data
-xrd_directory    = 'data/'
-mypowderdata     = 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat'
-composition      = 'O7 V2 Zr1'
-
-# Instrumental/sample parameters
-qdamp   = 2.70577268e-02
-qbroad  = 2.40376789e-06
-qmax    = 22.0
-myrange = (0.0, 80.0)
-myrstep = 0.05
-
-# Optimized parameters from prior refinement
-optimized_params = {
-    'Phase0': {
-        's':      4.92399836e-01,
-        'psize':  2.66658626e+02,
-        'delta2': 2.53696631e+00
-    }
-}
-
-# Default Uiso by element
-default_Uiso = {'Zr':5.79086780e-04, 'V':3.21503909e-03, 'O':7.21519003e-03}
-
-# Fitting and output settings
-fitting_range       = [1.5, 27]
-csv_filename        = 'sim_vs_obs.csv'
-output_results_path = 'resultsSimulations/25C_Phase0_6'
-if not os.path.isdir(output_results_path):
-    os.makedirs(output_results_path)
-
-# Execute workflow
-cpdf_simulated = simulate_pdf_workflow(
-    cif_directory,
-    ciffile,
-    xrd_directory,
-    mypowderdata,
-    composition,
-    qdamp,
-    qbroad,
-    qmax,
-    myrange,
-    myrstep,
-    optimized_params,
-    default_Uiso,
-    fitting_range,
-    csv_filename,
-    output_results_path,
-    font_size=14,
-    label_font_size=20
-)
-```
-
-## Output Data Structure
-
-The refinement results generated by the script are systematically organized in timestamped directories under the `fits/` directory. This clear structure ensures easy navigation and analysis of your refinement outputs.
 
 ## Performance Note
 
