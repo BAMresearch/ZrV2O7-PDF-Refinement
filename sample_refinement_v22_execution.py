@@ -52,7 +52,7 @@ The workflow is organized into several distinct stages:
 # It supports single or multiple datasets via the 'dataset_list'.
 
 project_config = {
-    'project_name': 'ZirconiumVanadate_Refinement/',
+    'project_name': 'ZirconiumVanadate_RefinementTest12092025/',
     'xrd_directory': 'data/',
     'cif_directory': 'CIFs/',
     'fit_directory': 'fits/',
@@ -126,68 +126,60 @@ simulation_data = {
 # =============================================================================
 # 3. REFINEMENT PLAN FOR SEQUENTIAL WORKFLOW
 # =============================================================================
-# This dictionary defines the entire multi-step refinement strategy.
-# refinement_plan = {
-#     0: {
-#         'description': 'Initial fit with Pa-3 symmetry and standard constraints',
-#         'space_group': ['Pa-3'],
-#         'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
-#         'fitting_range': [1.5, 27],
-#         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-#     },
-#     1: {
-#         'description': 'Refinement with tighter constraints (Pa-3 symmetry)',
-#         'space_group': ['Pa-3'],
-#         'constraints': {'constrain_bonds': (True, 0.0001), 'constrain_angles': (True, 0.0001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
-#         'fitting_range': [1.5, 27],
-#         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-#     },
-#     2: {
-#         'description': 'Symmetry reduction to P213',
-#         'space_group': ['P213'],
-#         'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
-#         'fitting_range': [1.5, 27],
-#         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-#     },
-#     3: {
-#         'description': 'Symmetry reduction to P23',
-#         'space_group': ['P23'],
-#         'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
-#         'fitting_range': [1.5, 27],
-#         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-#     },
-#     4: {
-#         'description': 'Further refinement in P23 with tighter constraints',
-#         'space_group': ['P23'],
-#         'constraints': {'constrain_bonds': (True, 0.0001), 'constrain_angles': (True, 0.0001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
-#         'fitting_range': [1.5, 27],
-#         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-#     },
-#     5: {
-#         'description': 'Lowest symmetry (P1)',
-#         'space_group': ['P1'],
-#         'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
-#         'fitting_range': [1.5, 27],
-#         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-#     },
-#     6: {
-#         'description': 'Final refinement in P1 with tightest constraints',
-#         'space_group': ['P1'],
-#         'constraints': {'constrain_bonds': (True, 0.0001), 'constrain_angles': (True, 0.0001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
-#         'fitting_range': [1.5, 27],
-#         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-#     }
-# }
-
+#This dictionary defines the entire multi-step refinement strategy.
 refinement_plan = {
     0: {
         'description': 'Initial fit with Pa-3 symmetry and standard constraints',
         'space_group': ['Pa-3'],
         'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
-        'fitting_range': [1.5, 10],
+        'fitting_range': [1.5, 27],
         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
     },
+    1: {
+        'description': 'Refinement with tighter constraints (Pa-3 symmetry)',
+        'space_group': ['Pa-3'],
+        'constraints': {'constrain_bonds': (True, 0.0001), 'constrain_angles': (True, 0.0001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
+        'fitting_range': [1.5, 27],
+        'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    },
+    2: {
+        'description': 'Symmetry reduction to P213',
+        'space_group': ['P213'],
+        'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
+        'fitting_range': [1.5, 27],
+        'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    },
+    3: {
+        'description': 'Symmetry reduction to P23',
+        'space_group': ['P23'],
+        'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
+        'fitting_range': [1.5, 27],
+        'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    },
+    4: {
+        'description': 'Further refinement in P23 with tighter constraints',
+        'space_group': ['P23'],
+        'constraints': {'constrain_bonds': (True, 0.0001), 'constrain_angles': (True, 0.0001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
+        'fitting_range': [1.5, 27],
+        'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    },
+    5: {
+        'description': 'Lowest symmetry (P1)',
+        'space_group': ['P1'],
+        'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
+        'fitting_range': [1.5, 27],
+        'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    },
+    6: {
+        'description': 'Final refinement in P1 with tightest constraints',
+        'space_group': ['P1'],
+        'constraints': {'constrain_bonds': (True, 0.0001), 'constrain_angles': (True, 0.0001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
+        'fitting_range': [1.5, 27],
+        'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    }
 }
+
+
 
 
 # Add the defined plan to the main configuration dictionary
