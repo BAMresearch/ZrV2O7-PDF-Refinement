@@ -697,6 +697,7 @@ class ResultsManager:
         Args:
             log_file (str): The full path to the log file.
         """
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
         self.logger = logging.getLogger('RefinementLogger')
         self.logger.setLevel(logging.INFO)
         # Prevent duplicate handlers if called multiple times
