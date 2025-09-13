@@ -697,9 +697,7 @@ class ResultsManager:
         Args:
             log_file (str): The full path to the log file.
         """
-        #create a log file
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
-        
         self.logger = logging.getLogger('RefinementLogger')
         self.logger.setLevel(logging.INFO)
         # Prevent duplicate handlers if called multiple times
@@ -2766,19 +2764,19 @@ class PDFWorkflowManager(PDFRefinement):
         return params_path, cif_path
 
     def save_checkpoint(self, dataset_id):
-        """Saves the current FitRecipe and structure to checkpoint files."""
-        recipe_path, _ = self._get_checkpoint_paths(dataset_id)
-        self.log(f"Saving checkpoint for {dataset_id}...")
-        try:
-            # Save FitRecipe using dill
-            # with open(recipe_path, 'wb') as f:
-            #     dill.dump(self.fit, f)
-            # Save the current structure to a CIF file
-            self.results_manager.export_cifs(f"checkpoint_{os.path.splitext(dataset_id)[0]}", self.cpdf)
-            self.log(f"  - Structure saved.")
-            self.log(f"  - Parameters saved to {params_path}") 
-        except Exception as e:
-            self.log(f"Error saving checkpoint for {dataset_id}: {e}", level='error')
+            """Saves the current FitRecipe and structure to checkpoint files."""
+            params_path, _ = self._get_checkpoint_paths(dataset_id)
+            self.log(f"Saving checkpoint for {dataset_id}...")
+            try:
+                # Save FitRecipe using dill
+                # with open(params_path, 'wb') as f:
+                #     dill.dump(self.fit, f)
+                # Save the current structure to a CIF file
+                self.results_manager.export_cifs(f"checkpoint_{os.path.splitext(dataset_id)[0]}", self.cpdf)
+                self.log(f"  - Structure saved.")
+                self.log(f"  - Parameters saved to {params_path}") 
+            except Exception as e:
+                self.log(f"Error saving checkpoint for {dataset_id}: {e}", level='error')
 
     def load_checkpoint(self, dataset_id):
         """Loads parameters from a checkpoint and returns them."""
