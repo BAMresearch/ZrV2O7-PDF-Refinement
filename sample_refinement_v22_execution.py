@@ -52,7 +52,7 @@ The workflow is organized into several distinct stages:
 # It supports single or multiple datasets via the 'dataset_list'.
 
 project_config = {
-    'project_name': 'ZirconiumVanadate_RefinementTest12092025/',
+    'project_name': 'ZirconiumVanadate_RefinementTest14092025/',
     'xrd_directory': 'data/',
     'cif_directory': 'CIFs/',
     'fit_directory': 'fits/',
@@ -97,7 +97,6 @@ project_config = {
     },
     
     # Parameters for the sequential/resumable workflow
-    'checkpoint_directory': 'fits/ZirconiumVanadate_Refinement/checkpoints/',
     'log_file': 'refinement_log.txt',
 }
 
@@ -198,6 +197,7 @@ import psutil
 import multiprocessing
 import numpy as np
 from multiprocessing import Pool
+import sys
 
 # Core custom classes for the PDF structural refinement
 from sample_refinement_v22_classes import (
@@ -223,7 +223,7 @@ if __name__ == '__main__':
         print("Configuration loaded successfully.")
     except KeyError as e:
         print(f"Error initializing configuration: {e}")
-        exit()
+        sys.exit()
 
     # --- 2. Setup the Environment ---
     syst_cores = multiprocessing.cpu_count()
