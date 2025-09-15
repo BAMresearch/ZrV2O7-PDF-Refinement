@@ -254,10 +254,10 @@ if __name__ == '__main__':
     # This section can be un-commented to execute a final validation simulation
     # using an optimized structural model.
 
-    # workflow.simulate_pdf_workflow(
-    #     main_config=config,
-    #     sim_config=simulation_data
-    # )
+    #workflow_orchestrator.simulate_pdf_workflow(
+    #    main_config=config,
+    #    sim_config=simulation_data
+    #)
 
     print("\nScript execution finished.")
     # =============================================================================
