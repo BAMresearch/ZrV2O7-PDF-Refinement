@@ -2869,7 +2869,7 @@ class PDFWorkflowManager(PDFRefinement):
                         # SCENARIO A: RESUME from a checkpoint.
                         self.log("Resuming from checkpoint.")
                         # Build a temporary cpdf just to load the structure into
-                        self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.cfile, self.config.myrange)
+                        self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.ciffile, self.config.myrange)
                         self.fit = self.build_initial_recipe()
                         
                         loaded_params = checkpoint_data.get('parameters', {})
