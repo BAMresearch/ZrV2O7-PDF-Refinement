@@ -52,7 +52,7 @@ The workflow is organized into several distinct stages:
 # It supports single or multiple datasets via the 'dataset_list'.
 
 project_config = {
-    'project_name': 'ZirconiumVanadate_RefinementTest14092025/',
+    'project_name': 'ZirconiumVanadate_RefinementTest23092025/',
     'xrd_directory': 'data/',
     'cif_directory': 'CIFs/',
     'fit_directory': 'fits/',
@@ -61,6 +61,8 @@ project_config = {
     'dataset_list': [
         'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
         'PDF_ZrV2O7_061_60C_avg_66_85_00000.dat',
+        'PDF_ZrV2O7_061_90C_avg_186_205_00000.dat',
+        'PDF_ZrV2O7_061_105C_avg_246_265_00000.dat',
         'PDF_ZrV2O7_061_427C_avg_446_465_00000.dat'
     ],
     
@@ -74,6 +76,11 @@ project_config = {
     'qdamp': 2.70577268e-02,
     'qbroad': 2.40376789e-06,
     'qmax': 22.0,
+    
+    # New flags to control the fitting of qdamp and qbroad
+    'refine_qdamp': False,
+    'refine_qbroad': False,
+    
     'anisotropic': False,
     'unified_Uiso': True,
     'sgoffset': [0.0, 0.0, 0.0],
@@ -109,7 +116,7 @@ simulation_data = {
     'cif_directory': 'optimised_PDF_fits_vs_Temp/25C_Phase0_6/',
     'ciffile': {'opt_25C_Phase0_6.cif': ['P1', True, (1, 1, 1)]},
     'powder_data_file': 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
-    'output_path': 'resultsSimulations/25C_Phase0_6',
+    'output_path': 'resultsSimulations/25C_Phase0_11',
     'optimized_params': {
         'Phase0': {'s': 4.92399836e-01, 'psize': 2.66658626e+02, 'delta2': 2.53696631e+00}
     },
@@ -125,7 +132,7 @@ simulation_data = {
 # =============================================================================
 # 3. REFINEMENT PLAN FOR SEQUENTIAL WORKFLOW
 # =============================================================================
-#This dictionary defines the entire multi-step refinement strategy.
+# This dictionary defines the entire multi-step refinement strategy.
 refinement_plan = {
     0: {
         'description': 'Initial fit with Pa-3 symmetry and standard constraints',
@@ -177,6 +184,8 @@ refinement_plan = {
         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
     }
 }
+
+
 
 
 
@@ -254,10 +263,10 @@ if __name__ == '__main__':
     # This section can be un-commented to execute a final validation simulation
     # using an optimized structural model.
 
-    #workflow_orchestrator.simulate_pdf_workflow(
-    #    main_config=config,
-    #    sim_config=simulation_data
-    #)
+    # workflow_orchestrator.simulate_pdf_workflow(
+    #     main_config=config,
+    #     sim_config=simulation_data
+    # )
 
     print("\nScript execution finished.")
     # =============================================================================
