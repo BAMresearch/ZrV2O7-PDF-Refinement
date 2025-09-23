@@ -112,7 +112,7 @@ class RefinementConfig:
             'ciffile', 'composition', 'detailed_composition',
             'qdamp', 'qbroad', 'qmax', 'anisotropic', 'unified_Uiso',
             'sgoffset', 'myrange', 'myrstep', 'convergence_options',
-            'pdfgetx_config', 'log_file', 'refinement_plan'
+            'pdfgetx_config', 'log_file', 'refinement_plan', 'refine_qdamp', 'refine_qbroad'
         ]
 
         # Validate that all required keys are present.
@@ -1509,6 +1509,7 @@ class PDFRefinement:
                 print(f'\nFreeing parameter group: {step}')
                 self.fit.free(step)
                 optimizer = 'L-BFGS-B'
+                #optimizer = 'SLSQP'
                 minimize(self.fit.scalarResidual, self.fit.values, method=optimizer, 
                          options=self.config.convergence_options, callback=callback)
             except Exception as e:
@@ -1603,12 +1604,36 @@ class PDFRefinement:
         self.cpdf.setEquation(phase_equation)
         print('equation:', self.cpdf.getEquation())
 
-        #------------------ 2b ------------------#
+        #------------------ 2 ------------------#
         # add delta2
         for phase in self.cpdf._generators:
             self.fit.addVar(getattr(self.cpdf, phase).delta2, name=f'delta2_{phase}', value=2.0,
                             tags=['delta2', str(phase), f'delta2_{phase}', 'delta'])
             self.fit.restrain(getattr(self.cpdf, phase).delta2, lb=0.0, ub=5, scaled=True, sig=0.005)
+
+        #------------------ 3 ------------------#
+        # Optionally add qdamp and qbroad as refinable parameters
+        for phase in self.cpdf._generators:
+            phase_gen = getattr(self.cpdf, phase)
+            
+            # Refine qdamp if the flag is set
+            if self.config.refine_qdamp:
+                self.fit.addVar(phase_gen.qdamp, name=f'qdamp_{phase}',
+                                tags=['qdamp', str(phase), f'qdamp_{phase}'])
+                # Restrain qdamp to a physically reasonable positive range
+                self.fit.restrain(phase_gen.qdamp, lb=0.0, ub=0.1, scaled=True, sig=1e-4)
+                print(f"Added refinable parameter qdamp for {phase} with initial value {phase_gen.qdamp.value}")
+
+            # Refine qbroad if the flag is set
+            if self.config.refine_qbroad:
+                self.fit.addVar(phase_gen.qbroad, name=f'qbroad_{phase}',
+                                tags=['qbroad', str(phase), f'qbroad_{phase}'])
+                # Restrain qbroad to a physically reasonable positive range
+                self.fit.restrain(phase_gen.qbroad, lb=0.0, ub=0.1, scaled=True, sig=1e-5)
+                print(f"Added refinable parameter qbroad for {phase} with initial value {phase_gen.qbroad.value}")
+
+        
+
 
         #------------------ 4 ------------------#
         # add scale factors s*
