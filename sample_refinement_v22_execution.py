@@ -82,7 +82,6 @@ project_config = {
     'refine_qbroad': False,
     
     'anisotropic': False,
-    'unified_Uiso': True,
     'sgoffset': [0.0, 0.0, 0.0],
     'myrange': (0.0, 80),
     'myrstep': 0.05,
