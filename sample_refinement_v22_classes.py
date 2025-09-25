@@ -1668,16 +1668,7 @@ class PDFRefinement:
                     self.fit.addVar(par, value=u0, name=name, tags=tags)
                     self.fit.restrain(par, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
             else:
-                mapped_adppars = self.helper.map_sgpar_params(sgpar, 'adppars')
-                added_adps = set()
-                for par in sgpar.adppars:
-                    try:
-                        atom_symbol = par.par.obj.element
-                        parameter_name = par.name
-                        atom_label = mapped_adppars[parameter_name][1]
-                        added_adps.add(atom_label)
-                    except Exception:
-                        pass
+
                 if self.config.unified_Uiso:
                     print('Adding isotropic displacement parameters as unified values.')
                     # Unconstrain all Uiso parameters that were automatically
@@ -1699,7 +1690,17 @@ class PDFRefinement:
                         if atom.element in element_vars:
                             self.fit.constrain(atom.Uiso, element_vars[atom.element])
                 else:
-                    print('Adding isotropic displacement parameters as independent values.')
+                    print('Adding isotropic displacement parameters according to space group restrictions.')
+                    mapped_adppars = self.helper.map_sgpar_params(sgpar, 'adppars')
+                    added_adps = set()
+                    for par in sgpar.adppars:
+                        try:
+                            atom_symbol = par.par.obj.element
+                            parameter_name = par.name
+                            atom_label = mapped_adppars[parameter_name][1]
+                            added_adps.add(atom_label)
+                        except Exception:
+                            pass
                     getattr(self.cpdf, phase).stru.anisotropy = False
                     # Unconstrain all Uiso parameters that were automatically
                     # constrained by the space group symmetry.
