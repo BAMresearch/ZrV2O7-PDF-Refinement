@@ -1680,25 +1680,40 @@ class PDFRefinement:
                         pass
                 if self.config.unified_Uiso:
                     print('Adding isotropic displacement parameters as unified values.')
-                    getattr(self.cpdf, phase).stru.anisotropy = False
-                    # one Uiso per element
+                    # Unconstrain all Uiso parameters that were automatically
+                    # constrained by the space group symmetry.
+                    for atom in getattr(self.cpdf, phase).phase.getScatterers():
+                        if atom.Uiso.constrained:
+                            self.fit.unconstrain(atom.Uiso)
+                    
+                    # Create a single, shared refinable variable for each element.
+                    element_vars = {}
                     for el, info in self.config.detailed_composition.items():
                         u0 = info['Uiso']
-                        var = self.fit.newVar(f"Uiso_{el}_{phase}", value=u0, tags=['adp', el, str(phase)])
-                        for atom in getattr(self.cpdf, phase).phase.getScatterers():
-                            if atom.element == el:
-                                self.fit.constrain(atom.Uiso, var)
-                                self.fit.restrain(atom.Uiso, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
+                        element_vars[el] = self.fit.newVar(f"Uiso_{el}_{phase}", value=u0, tags=['adp', el, str(phase)])
+                        self.fit.restrain(element_vars[el], lb=0.0, ub=0.1, scaled=True, sig=0.0005)
+                    
+                    # Now that they are free, directly constrain every atom's
+                    # Uiso to the appropriate shared variable.
+                    for atom in getattr(self.cpdf, phase).phase.getScatterers():
+                        if atom.element in element_vars:
+                            self.fit.constrain(atom.Uiso, element_vars[atom.element])
                 else:
                     print('Adding isotropic displacement parameters as independent values.')
                     getattr(self.cpdf, phase).stru.anisotropy = False
+                    # Unconstrain all Uiso parameters that were automatically
+                    # constrained by the space group symmetry.
+                    for atom in getattr(self.cpdf, phase).phase.getScatterers():
+                        if atom.Uiso.constrained:
+                            self.fit.unconstrain(atom.Uiso)
+                            
                     for atom in getattr(self.cpdf, phase).phase.getScatterers():
                         el = atom.element
                         if atom.name.upper() in added_adps:
                             u0 = self.config.detailed_composition.get(el, {}).get('Uiso', 0.01)
                             self.fit.addVar(atom.Uiso,
                                        value=u0,
-                                       name=f"{atom.name}_{phase}",
+                                       name=f"Uiso_{atom.name}_{phase}",
                                        fixed=False,
                                        tags=['adp', str(phase), f"adp_{phase}", f"adp_{el}"])
                             self.fit.restrain(atom.Uiso, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
