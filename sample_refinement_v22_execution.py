@@ -12,7 +12,7 @@ DESCRIPTION:
 This script serves as the main execution environment for performing automated,
 multi-stage structural refinements of crystalline materials against X-ray
 scattering data. It leverages an object-oriented framework defined in the
-accompanying 'sample_refinement_v21_classes.py' module.
+accompanying 'sample_refinement_v22_classes.py' module.
 
 The workflow is organized into several distinct stages:
 
