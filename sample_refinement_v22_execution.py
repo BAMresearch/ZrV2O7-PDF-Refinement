@@ -125,14 +125,17 @@ project_config = {
     },
     
     # This optional section specifies a pre-refined structure.
-    # It will ONLY be used for the first dataset if no checkpoint exists.
-    # 'special_structure': {
-    #     'file_path': 'fits/ZirconiumVanadate25Cperiodic/18032025_071408/Phase0_6.cif',
-    #     'phase_index_to_update': 0 
-    # },
+    # It will ONLY be used for the first dataset if no checkpoint exists or 'start_each_dataset_fresh': False .
+    'special_structure': {
+        'file_path': 'fits/ZirconiumVanadate25Cperiodic/18032025_071408/Phase0_6.cif',
+        'phase_index_to_update': 0 
+    },
     
     # Parameters for the sequential/resumable workflow
     'log_file': 'refinement_log.txt',
+    # If True, each dataset starts fresh from the default CIF or 'special_structure'.
+    # If False, each dataset (after the first) starts from the previous one's result.
+    'start_each_dataset_fresh': False
 }
 
 # =============================================================================
