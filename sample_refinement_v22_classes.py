@@ -108,11 +108,13 @@ class RefinementConfig:
         # Define the keys required for the unified workflow.
         required_keys = [
             'project_name', 'xrd_directory', 'cif_directory', 'fit_directory',
-            'dataset_list', # Replaces 'mypowderdata'
+            'dataset_list',
             'ciffile', 'composition', 'detailed_composition',
             'qdamp', 'qbroad', 'qmax', 'anisotropic',
             'sgoffset', 'myrange', 'myrstep', 'convergence_options',
-            'pdfgetx_config', 'log_file', 'refinement_plan', 'refine_qdamp', 'refine_qbroad'
+            'pdfgetx_config', 'log_file', 'refinement_plan', 
+            'refine_qdamp', 'refine_qbroad',
+            'start_each_dataset_fresh'
         ]
 
         # Validate that all required keys are present.
@@ -1868,7 +1870,6 @@ class PDFRefinement:
 
         return self.fit   
     
-# In sample_refinement_v21_classes.py, inside the PDFRefinement class:
 
     def update_recipe_from_initial(self,
             fit_old,
@@ -2843,114 +2844,141 @@ class PDFWorkflowManager(PDFRefinement):
             return None
 
     def run_sequential_workflow(self):
-                """
-                Executes the entire automated refinement workflow.
-            
-                This method serves as the main entry point for the analysis. It iterates
-                through a list of datasets provided in the configuration and applies a
-                multi-step refinement, as defined in the 'refinement_plan'.
-            
-                The key functionalities include:
-                - Processing a sequence of one or more datasets.
-                - A checkpoint system that saves the state after each refinement step,
-                    allowing the process to be resumed if interrupted.
-                - For sequential datasets, the refined model from the previous dataset is
-                    used as the starting point for the next, ensuring continuity.
-                - For the very first dataset, it can optionally start from a user-provided
-                    'special_structure' CIF file.
-                """
-                if not hasattr(self.config, 'refinement_plan'):
-                    self.log("Error: 'refinement_plan' not found in the configuration.", level='error')
-                    return
-            
-                refinement_plan = self.config.refinement_plan
-                self.log("======= STARTING REFINEMENT WORKFLOW =======")
-                
-                # Keep track of the last successful fit AND its corresponding cpdf
-                last_successful_fit = None
-                last_successful_cpdf = None
-            
-                for idx, dataset in enumerate(self.config.dataset_list):
-                    dataset_id = os.path.basename(dataset)
-                    self.log(f"\n===== PROCESSING DATASET {idx + 1}/{len(self.config.dataset_list)}: {dataset_id} =====")
-            
-                    self.config.new_output_directory(subdir_name=os.path.splitext(dataset_id)[0])
-                    r, g, cfg = self.pdf_manager.generatePDF(
-                        data_directory=self.config.xrd_directory, data_filename=dataset,
-                        composition=self.config.composition, qmax=self.config.qmax,
-                        myrange=self.config.myrange, myrstep=self.config.myrstep,
-                        pdfgetx_config=self.config.pdfgetx_config
-                    )
-                    
-                    start_step = 0
-                    checkpoint_data = self.load_checkpoint(dataset_id)
-        
-                    if checkpoint_data:
-                        # SCENARIO A: RESUME from a checkpoint.
-                        self.log("Resuming from checkpoint.")
-                        # Build a temporary cpdf just to load the structure into
-                        self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.ciffile, self.config.myrange)
-                        self.fit = self.build_initial_recipe()
-                        
-                        loaded_params = checkpoint_data.get('parameters', {})
-                        self.log("Applying loaded parameters to the model...")
-                        for name, value in loaded_params.items():
-                            if name in self.fit.names:
-                                getattr(self.fit, name).value = value
-                        
-                        self.initialize_from_special_structure()
-                        last_step = checkpoint_data.get('last_completed_step', -1)
-                        start_step = last_step + 1
-        
-                    elif idx > 0 and last_successful_fit and last_successful_cpdf:
-                        # SCENARIO B: CONTINUE from previous dataset's results.
-                        self.log("Initializing from previous dataset's results.")
-                        
-                        # **FIX:** Rebuild the contribution using the PREVIOUS refined structure
-                        self.cpdf = self.rebuild_contribution(
-                            old_cpdf=last_successful_cpdf,
-                            r_obs=r,
-                            g_obs=g,
-                            name=f'cpdf_{idx}'
-                        )
-                        
-                        new_fit = self.build_initial_recipe()
-                        self.update_recipe_from_initial(last_successful_fit, new_fit, self.cpdf, recalculate_bond_vectors=True)
-        
-                    else:
-                        # SCENARIO C: START new refinement from scratch.
-                        self.log("First dataset: Building initial model from scratch.")
-                        self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.ciffile, self.config.myrange)
-                        self.initialize_from_special_structure()
-                        self.fit = self.build_initial_recipe()
-        
-                    # --- REFINEMENT LOOP ---
-                    for i in range(start_step, len(refinement_plan)):
-                        step_params = refinement_plan[i]
-                        self.log(f"\n--- Running Step {i}: {step_params.get('description', 'No description')} ---")
-            
-                        if 'space_group' in step_params:
-                            enforce_cubic = step_params.get('enforce_pseudo_cubic', True)
-                            self.modify_recipe_spacegroup(step_params['space_group'],                   enforce_pseudo_cubic=enforce_cubic)
-            
-                        if 'constraints' in step_params:
-                            self.apply_rigid_body_constraints(**step_params['constraints'])
-            
-                        self.run_refinement_step(
-                            i,
-                            step_params['fitting_range'],
-                            self.config.myrstep,
-                            step_params['fitting_order'],
-                            'resv'
-                        )
-                        self.save_checkpoint(dataset_id, i)
-            
-                    self.results_manager.finalize_results(self.cpdf, self.fit)
-                    
-                    # Update both trackers for the next iteration
-                    last_successful_fit = self.fit
-                    last_successful_cpdf = self.cpdf
-                    
-                    self.log(f"===== COMPLETED DATASET: {dataset_id} =====")
-            
-                self.log("\n======= REFINEMENT WORKFLOW FINISHED =======")
+        """Executes the automated, multi-dataset refinement workflow.
+    
+        This method serves as the primary entry point for orchestrating a
+        series of refinements. It iterates through the list of datasets
+        defined in the project configuration and applies a multi-step
+        refinement strategy to each one, as specified in the 'refinement_plan'.
+    
+        The workflow's behavior is governed by three main initialization scenarios
+        for each dataset, prioritized in the following order:
+    
+        1.  **Resume from Checkpoint**: If a valid checkpoint file exists for the
+            current dataset, the workflow will load the structure and refined
+            parameters from that checkpoint and resume the refinement plan from
+            the last completed step. This is the highest priority and ensures
+            recovery from interruptions.
+    
+        2.  **Continue from Previous Dataset**: If no checkpoint exists and the
+            `start_each_dataset_fresh` configuration flag is False, the workflow
+            uses the final, fully refined model from the *previous* dataset as
+            the starting point for the current one. This provides continuity
+    -            for sequential analyses (e.g., temperature series).
+    
+        3.  **Start Fresh**: If neither of the above conditions is met (i.e., it is
+            the first dataset, or the `start_each_dataset_fresh` flag is set to
+            True), the workflow will initialize a new model from scratch. It
+            will use the default CIF file specified in the configuration, or
+            optionally, a 'special_structure' if one is provided.
+    
+        The method manages all file I/O, state-tracking between datasets,
+        and the execution of the planned refinement steps.
+        """
+        # Verify that the refinement plan exists in the configuration.
+        if not hasattr(self.config, 'refinement_plan'):
+            self.log("Error: 'refinement_plan' not found in the configuration.", level='error')
+            return
+    
+        refinement_plan = self.config.refinement_plan
+        self.log("======= STARTING REFINEMENT WORKFLOW =======")
+    
+        # These variables will store the results from the previously completed dataset.
+        last_successful_fit = None
+        last_successful_cpdf = None
+    
+        # Begin iterating through each dataset provided in the configuration.
+        for idx, dataset in enumerate(self.config.dataset_list):
+            dataset_id = os.path.basename(dataset)
+            self.log(f"\n===== PROCESSING DATASET {idx + 1}/{len(self.config.dataset_list)}: {dataset_id} =====")
+    
+            # Create a dedicated output directory for the current dataset.
+            self.config.new_output_directory(subdir_name=os.path.splitext(dataset_id)[0])
+    
+            # Process the raw experimental data to generate the PDF (G(r)).
+            r, g, cfg = self.pdf_manager.generatePDF(
+                data_directory=self.config.xrd_directory, data_filename=dataset,
+                composition=self.config.composition, qmax=self.config.qmax,
+                myrange=self.config.myrange, myrstep=self.config.myrstep,
+                pdfgetx_config=self.config.pdfgetx_config
+            )
+    
+            start_step = 0
+            # Attempt to load a checkpoint for the current dataset.
+            checkpoint_data = self.load_checkpoint(dataset_id)
+    
+            # --- Model Initialization Logic ---
+            if checkpoint_data:
+                # SCENARIO A: RESUME from a checkpoint (highest priority).
+                self.log("Resuming from checkpoint.")
+                self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.cfile, self.config.myrange)
+                self.fit = self.build_initial_recipe()
+    
+                # Apply the parameters saved in the checkpoint file.
+                loaded_params = checkpoint_data.get('parameters', {})
+                self.log("Applying loaded parameters to the model...")
+                for name, value in loaded_params.items():
+                    if name in self.fit.names:
+                        getattr(self.fit, name).value = value
+    
+                self.initialize_from_special_structure()
+                last_step = checkpoint_data.get('last_completed_step', -1)
+                start_step = last_step + 1
+    
+            elif not self.config.start_each_dataset_fresh and idx > 0 and last_successful_fit and last_successful_cpdf:
+                # SCENARIO B: CONTINUE from the previous dataset's refined model.
+                # This is skipped if the 'start_each_dataset_fresh' flag is True.
+                self.log("Initializing from previous dataset's results.")
+                self.cpdf = self.rebuild_contribution(
+                    old_cpdf=last_successful_cpdf,
+                    r_obs=r,
+                    g_obs=g,
+                    name=f'cpdf_{idx}'
+                )
+                new_fit = self.build_initial_recipe()
+                self.update_recipe_from_initial(last_successful_fit, new_fit, self.cpdf, recalculate_bond_vectors=True)
+    
+            else:
+                # SCENARIO C: START FRESH from the initial CIF or a special structure.
+                # This runs for the first dataset or when forced by the config flag.
+                self.log("First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.")
+                self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.ciffile, self.config.myrange)
+                self.initialize_from_special_structure()
+                self.fit = self.build_initial_recipe()
+    
+            # --- Refinement Loop for the current dataset ---
+            # This loop executes the steps defined in the refinement_plan.
+            for i in range(start_step, len(refinement_plan)):
+                step_params = refinement_plan[i]
+                self.log(f"\n--- Running Step {i}: {step_params.get('description', 'No description')} ---")
+    
+                # Modify the model's space group if specified for this step.
+                if 'space_group' in step_params:
+                    enforce_cubic = step_params.get('enforce_pseudo_cubic', True)
+                    self.modify_recipe_spacegroup(step_params['space_group'], enforce_pseudo_cubic=enforce_cubic)
+    
+                # Apply geometric constraints if specified for this step.
+                if 'constraints' in step_params:
+                    self.apply_rigid_body_constraints(**step_params['constraints'])
+    
+                # Execute the refinement for the current step.
+                self.run_refinement_step(
+                    i,
+                    step_params['fitting_range'],
+                    self.config.myrstep,
+                    step_params['fitting_order'],
+                    'resv'
+                )
+                # Save progress to a checkpoint file after completing the step.
+                self.save_checkpoint(dataset_id, i)
+    
+            # Finalize and save all results for the current dataset.
+            self.results_manager.finalize_results(self.cpdf, self.fit)
+    
+            # Store the final model and parameters for the next iteration.
+            last_successful_fit = self.fit
+            last_successful_cpdf = self.cpdf
+    
+            self.log(f"===== COMPLETED DATASET: {dataset_id} =====")
+    
+        self.log("\n======= REFINEMENT WORKFLOW FINISHED =======")
