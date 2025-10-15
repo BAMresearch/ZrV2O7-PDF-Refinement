@@ -78,7 +78,7 @@ from diffpy.srfit.pdf import DebyePDFGenerator
 # =============================================================================
 # Import optimization algorithms from SciPy
 # Provides a selection of optimizers, including least-squares and gradient-based methods.
-from scipy.optimize import leastsq, least_squares, minimize
+from scipy.optimize import leastsq, least_squares, minimize, basinhopping
 
 
 # =============================================================================
@@ -114,7 +114,8 @@ class RefinementConfig:
             'sgoffset', 'myrange', 'myrstep', 'convergence_options',
             'pdfgetx_config', 'log_file', 'refinement_plan', 
             'refine_qdamp', 'refine_qbroad',
-            'start_each_dataset_fresh'
+            'start_each_dataset_fresh',
+            'optimizer', 'optimizer_method'
         ]
 
         # Validate that all required keys are present.
@@ -1148,7 +1149,7 @@ class ResultsManager:
             df.to_csv(log_filename, index=False)
         except Exception as e:
             print(f"[ERROR] Could not write to log file {log_filename}: {e}")
-            exit # Exit if logging fails
+            sys.exit # Exit if logging fails
     
     
     
@@ -1432,9 +1433,18 @@ class PDFRefinement:
         """Convenience method to call the ResultsManager logger."""
         self.results_manager.log(message, level)
 
+
     def run_refinement_step(self, i, fitting_range, myrstep, fitting_order, residualEquation, save_every=1):
         """
         Perform the refinement process for a single stage index "i".
+        
+        This method orchestrates a single, complete fitting stage. It configures the
+        calculation range, resets counters, defines optimizer-specific callbacks for
+        progress tracking, and iterates through the specified `fitting_order` to
+        sequentially refine different groups of parameters.
+
+        It supports multiple optimization strategies ('minimize', 'least_squares',
+        'basinhopping'), selected via the global configuration.
         
         Parameters:
         - i: Integer, index of the fitting step.
@@ -1442,11 +1452,10 @@ class PDFRefinement:
         - myrstep: Float, step size for r values.
         - fitting_order: List of strings, tags defining the fitting order (e.g., ['lat', 'scale', 'xyz']).
         - residualEquation: String, residual equation used for fitting (e.g., 'resv').
-        - save_very: frequency of progress logging, default = 1 (each iteration)
+        - save_every: frequency of progress logging, default = 1 (each iteration)
 
         Returns:
         - None
-
         """
         print('-------------------------------------------------------------------')
         print(f"Fitting stage {i}")
@@ -1460,34 +1469,41 @@ class PDFRefinement:
         self.iteration_counter = 0
         iteration_history = [] # Stores (iteration, Rw) tuples
 
-        def callback(xk):
+        # This callback can now be used by BOTH 'minimize' and 'basinhopping's internal minimizer.
+        def progress_logging_callback(xk):
             """
-            Nested callback to manage iteration state, save intermediate
-            results, calculate Rw, and log/plot convergence.
+            Nested callback to log progress at each step of a local optimization.
+            
+            This function is passed to the local optimizer (`minimize` or the one
+            inside `basinhopping`). It is executed at every step of the algorithm,
+            calculating Rw, logging it, and updating the convergence plot.
+            
+            Args:
+                xk: The current parameter vector from the optimizer.
             """
             self.iteration_counter += 1
-
             # --- Calculate Rw for the current state ---
             try:
+                # Get the necessary profiles for Rw calculation.
                 r = self.cpdf.profile.x
                 g_obs = self.cpdf.profile.y
-                g_calc = self.cpdf.evaluate() # Get G_calc at current state
+                g_calc = self.cpdf.evaluate() # Evaluate the model with current parameters.
 
-                # Mask to the fitting range for accurate Rw
+                # Mask the data to the specified fitting range for an accurate Rw.
                 rmin, rmax = fitting_range
                 mask = (r >= rmin) & (r <= rmax)
                 g_obs_fit = g_obs[mask]
                 g_calc_fit = g_calc[mask]
 
-                # Calculate Rw
+                # Calculate the weighted R-factor (Rw).
                 numerator = np.sum((g_obs_fit - g_calc_fit)**2)
                 denominator = np.sum(g_obs_fit**2)
                 rw = np.sqrt(numerator / denominator) if denominator != 0 else 0
 
-                # Append to history
+                # Append the result to the history for this stage.
                 iteration_history.append((self.iteration_counter, rw))
 
-                # Log and plot the updated history
+                # Use the ResultsManager to update the CSV log and generate the plot.
                 self.results_manager.log_and_plot_rw(
                     output_path=self.config.output_results_path,
                     stage_index=i,
@@ -1496,24 +1512,74 @@ class PDFRefinement:
             except Exception as e:
                 print(f"[WARNING] Could not calculate or log Rw at iteration {self.iteration_counter}: {e}")
 
-            # --- Save intermediate state (CIF object) ---
-            self.results_manager.save_state_callback(
-                fit=self.fit,
-                cpdf=self.cpdf,
-                output_path=self.config.output_results_path,
-                lock=self.file_lock,
-                iteration_counter=self.iteration_counter,
-                save_every=save_every
-            )
-    
+        # The problematic basinhopping_global_step_callback has been removed.
+
+        # The main refinement loop iterates through parameter groups defined in 'fitting_order'.
         for step in fitting_order:
             try:
+                # Free the parameters belonging to the current group for refinement.
                 print(f'\nFreeing parameter group: {step}')
                 self.fit.free(step)
-                optimizer = 'L-BFGS-B'
-                #optimizer = 'SLSQP'
-                minimize(self.fit.scalarResidual, self.fit.values, method=optimizer, 
-                         options=self.config.convergence_options, callback=callback)
+                
+                # Read the globally defined optimizer settings from the configuration.
+                optimizer_choice = self.config.optimizer.lower()
+                method = self.config.optimizer_method
+                options = self.config.convergence_options
+                print(f"Using global optimizer: '{optimizer_choice}' with method: '{method}'")
+
+                # --- Optimizer Selection Logic ---
+                if optimizer_choice == 'basinhopping':
+                    # Global optimization: Explores the parameter space broadly.
+                    bh_options = getattr(self.config, 'basinhopping_options', {'stepsize':10.0,'niter': 100,'T':10})
+                    bounds_list = self.fit.getBounds()
+                    
+                    # 'minimizer_kwargs' configures the local optimizer that basinhopping uses internally.
+                    # We now pass our progress callback here.
+                    minimizer_kwargs = {
+                        "method": method,
+                        "bounds": bounds_list,
+                        "callback": progress_logging_callback # <-- THE FIX IS HERE
+                    }
+                    
+                    print(f"Starting Basin-Hopping with {bh_options.get('niter', 100)} iterations...")
+                    result = basinhopping(
+                        self.fit.scalarResidual, # The function to minimize (scalar value).
+                        self.fit.values,        # The initial parameter values.
+                        niter=bh_options.get('niter', 100),
+                        minimizer_kwargs=minimizer_kwargs,
+                        disp=True              # Display summary of each global step.
+                    )
+                    # After the global search, update the recipe with the best parameters found.
+                    self.fit.setValues(result.x)
+                
+                elif optimizer_choice == 'least_squares':
+                    # Specialized local optimizer for fitting problems (minimizes sum of squares).
+                    bounds_list = self.fit.getBounds()
+                    lower_bounds = [b[0] if b[0] is not None else -np.inf for b in bounds_list]
+                    upper_bounds = [b[1] if b[1] is not None else np.inf for b in bounds_list]
+                    bounds_formatted = (lower_bounds, upper_bounds)
+
+                    least_squares(
+                        self.fit.residual, # The function returning a vector of residuals.
+                        self.fit.values,
+                        method=method,
+                        bounds=bounds_formatted,
+                        ftol=options.get('ftol', 1e-4),
+                        verbose=2 if options.get('disp', False) else 0
+                    )
+                
+                elif optimizer_choice == 'minimize':
+                    # General-purpose local optimizer.
+                    minimize(
+                        self.fit.scalarResidual, # The function to minimize (scalar value).
+                        self.fit.values,
+                        method=method,
+                        options=options,
+                        callback=progress_logging_callback # Pass the callback for local steps.
+                    )
+                else:
+                    print(f"[ERROR] Unknown global optimizer '{optimizer_choice}'.")
+
             except Exception as e:
                 print(f"Caught an exception during minimization for step '{step}': {e}")
                 continue
@@ -1528,207 +1594,259 @@ class PDFRefinement:
             self.results_manager.visualize_fit_summary(self.cpdf, phase, output_path_prefix)
 
 
-            
-    def build_initial_recipe(self):
-        """Constructs the initial FitRecipe object for the refinement.
 
-        It systematically defines and adds all necessary
-        parameters, applies symmetry constraints, and prepares the model for
-        the first optimization step.
-        
-        The process involves the following sequential operations:
-        
-        1.  **Recipe Initialization**:
-            - A new, empty `FitRecipe` object is instantiated and assigned to
-              `self.fit`.
-            - The `PDFContribution` object, containing the experimental data
-              and structural model generators, is added to the recipe.
-        
-        2.  **Core Parameter Definition**:
-            - **Scale Factors**: A scale factor variable (`s_Phase...`) is
-              created for each structural phase. This parameter accounts for
-              the phase fraction and the overall experimental intensity scale.
-            - **Correlated Motion (delta2)**: A `delta2` variable is added for
-              each phase. This parameter models the sample-dependent peak
-              sharpening at low-r that arises from correlated atomic motion,
-              a phenomenon not described by the standard atomic displacement
-              parameters (ADPs).
-        
-        3.  **Crystallographic Parameter Generation**:
-            - **Symmetry Application**: The `constrainAsSpaceGroup` function is
-              invoked to analyze the crystal structure of each phase. It
-              determines the set of independent refinable parameters (lattice,
-              ADP, and atomic coordinates) consistent with the specified
-              space group symmetry.
-            - **Lattice Parameters**: The independent lattice parameters (e.g.,
-              'a', 'b', 'c', 'alpha', 'beta', 'gamma') identified by the
-              symmetry analysis are added to the recipe as refinable variables.
-            - **Atomic Displacement Parameters (ADPs)**: Parameters describing
-              thermal and static atomic disorder are added. The method follows
-              the configuration setting:
-              - If `anisotropic` is True, independent anisotropic displacement
-                parameters (`U11`, `U22`, etc.) are added according to space 
-                group requirements.
-              - If `anisotropic` is False, isotropic parameters (`Uiso`) are
-                added. All atoms of the same element within a phase are 
-                constrained to share a single `Uiso` value.
-            - **Atomic Coordinates**: The independent fractional atomic
-              coordinates ('x', 'y', 'z') determined by the symmetry analysis
-              are added to the recipe as refinable variables.
-        
-        4.  **Nanoparticle Shape Function**:
-            - The `sphericalCF` characteristic function is registered for each
-              phase to model the damping of the PDF signal that results from
-              finite crystallite size.
-            - A corresponding `psize` parameter, representing the average
-              diameter of the spherical nanoparticles, is added for each phase.
-            - The overall phase equation is updated to include this shape
-              function multiplicative term.
-        
-        5.  **Initial Bond Vector Calculation**:
-            - As a final preparatory step, the `get_polyhedral_bond_vectors`
-              method is called to calculate all bond lengths and angles from
-              the initial, unrefined structure.
-            - These geometric descriptors are stored in the instance variable
-              `self.global_bond_vectors` for later use when applying rigid-body
-              constraints via the `apply_rigid_body_constraints` method.
-        
+    def build_initial_recipe(self):
+        """
+        Constructs the initial FitRecipe object for the refinement.
+
+        This method acts as a high-level orchestrator for creating a complete
+        FitRecipe. It initializes the recipe and then calls a series of
+        private helper methods, each responsible for a specific part of the
+        setup process. This modular approach improves readability and
+        maintainability.
+
+        The setup sequence is as follows:
+        1.  Initialize the FitRecipe and add the PDFContribution.
+        2.  Define the mathematical equation combining structural phases.
+        3.  Add parameters related to instrumental resolution and atomic motion.
+        4.  Add scale factor parameters for each phase.
+        5.  Apply space group symmetry and add all structural parameters
+            (lattice, ADPs, atomic coordinates).
+        6.  Incorporate a nanoparticle shape function.
+        7.  Perform an initial calculation of bond vectors for later use.
+
         Returns:
             diffpy.srfit.fitbase.FitRecipe: The fully constructed and configured
             `FitRecipe` object, ready for the first refinement step.
         """
+        # Initialize an empty FitRecipe and add the main PDF contribution.
         self.fit = FitRecipe()
         self.fit.addContribution(self.cpdf)
 
-        #------------------ 1 ------------------#
-        # Generate a phase equation.
-        phase_equation = ' + '.join([f's_{phase}*{phase}' for phase in self.cpdf._generators])
+        # Call helper methods to build the recipe in a logical sequence.
+        self._setup_recipe_equation()
+        self._add_instrumental_and_correlation_parameters()
+        self._add_scale_factors()
+        self._apply_symmetry_and_add_structural_parameters()
+        self._add_nanoparticle_shape_function()
+        self._calculate_initial_bond_vectors()
+
+        # Set verbosity for diagnostic information during fitting.
+        self.fit.fithooks[0].verbose = 2
+
+        return self.fit
+
+    def _setup_recipe_equation(self):
+        """
+        Private helper to define the initial mathematical equation for the PDF model.
+        
+        This method constructs a string that represents the linear combination of
+        all structural phases present in the model. Each phase is multiplied by
+        a unique scale factor.
+        """
+        # The equation is a sum of (scale_factor * phase_generator).
+        phase_equation = ' + '.join(
+            [f's_{phase}*{phase}' for phase in self.cpdf._generators]
+        )
         self.cpdf.setEquation(phase_equation)
-        print('equation:', self.cpdf.getEquation())
+        print('Initial equation:', self.cpdf.getEquation())
 
-        #------------------ 2 ------------------#
-        # add delta2
-        for phase in self.cpdf._generators:
-            self.fit.addVar(getattr(self.cpdf, phase).delta2, name=f'delta2_{phase}', value=2.0,
-                            tags=['delta2', str(phase), f'delta2_{phase}', 'delta'])
-            self.fit.restrain(getattr(self.cpdf, phase).delta2, lb=0.0, ub=5, scaled=True, sig=0.005)
-
-        #------------------ 3 ------------------#
-        # Optionally add qdamp and qbroad as refinable parameters
+    def _add_instrumental_and_correlation_parameters(self):
+        """
+        Private helper to add instrumental and physical parameters to the recipe.
+        
+        This method adds and restrains the following parameters for each phase:
+        - delta2: Accounts for sample-dependent peak sharpening from correlated
+          atomic motion.
+        - qdamp: Models instrumental resolution damping due to finite Q resolution.
+        - qbroad: Models instrumental peak broadening.
+        
+        The decision to refine qdamp and qbroad is controlled by flags in the
+        main configuration object.
+        """
         for phase in self.cpdf._generators:
             phase_gen = getattr(self.cpdf, phase)
             
-            # Refine qdamp if the flag is set
+            # Add delta2 parameter for correlated motion.
+            self.fit.addVar(phase_gen.delta2, name=f'delta2_{phase}', value=2.0,
+                            tags=['delta2', str(phase), f'delta2_{phase}', 'delta'])
+            self.fit.restrain(phase_gen.delta2, lb=0.0, ub=5, scaled=True, sig=0.005)
+
+            # Conditionally add qdamp as a refinable parameter.
             if self.config.refine_qdamp:
                 self.fit.addVar(phase_gen.qdamp, name=f'qdamp_{phase}',
                                 tags=['qdamp', str(phase), f'qdamp_{phase}'])
-                # Restrain qdamp to a physically reasonable positive range
                 self.fit.restrain(phase_gen.qdamp, lb=0.0, ub=0.1, scaled=True, sig=1e-4)
                 print(f"Added refinable parameter qdamp for {phase} with initial value {phase_gen.qdamp.value}")
 
-            # Refine qbroad if the flag is set
+            # Conditionally add qbroad as a refinable parameter.
             if self.config.refine_qbroad:
                 self.fit.addVar(phase_gen.qbroad, name=f'qbroad_{phase}',
                                 tags=['qbroad', str(phase), f'qbroad_{phase}'])
-                # Restrain qbroad to a physically reasonable positive range
                 self.fit.restrain(phase_gen.qbroad, lb=0.0, ub=0.1, scaled=True, sig=1e-5)
                 print(f"Added refinable parameter qbroad for {phase} with initial value {phase_gen.qbroad.value}")
 
+    def _add_scale_factors(self):
+        """
+        Private helper to add and restrain the scale factor for each phase.
         
-
-
-        #------------------ 4 ------------------#
-        # add scale factors s*
+        The scale factor accounts for the phase fraction and overall
+        experimental intensity scale.
+        """
         for phase in self.cpdf._generators:
-            self.fit.addVar(getattr(self.cpdf, f's_{phase}'), value=0.1, tags=['scale', str(phase), f's_{phase}'])
-            self.fit.restrain(getattr(self.cpdf, f's_{phase}'), lb=0.0, scaled=True, sig=0.0005)
+            # The variable `s_Phase...` is dynamically created by the PDFContribution.
+            scale_var = getattr(self.cpdf, f's_{phase}')
+            self.fit.addVar(scale_var, value=0.1, tags=['scale', str(phase), f's_{phase}'])
+            self.fit.restrain(scale_var, lb=0.0, scaled=True, sig=0.0005)
 
-        #------------------ 5 ------------------#
-        # determine independent parameters based on the space group
+    def _apply_symmetry_and_add_structural_parameters(self):
+        """
+        Private helper to apply space group symmetry and add structural parameters.
+
+        This method is the core of the structure model setup. For each phase, it:
+        1.  Calls `constrainAsSpaceGroup` to determine the independent refinable
+            parameters (lattice, ADPs, coordinates) for the given symmetry.
+        2.  Adds the independent lattice parameters to the recipe.
+        3.  Adds atomic displacement parameters (ADPs), handling both isotropic
+            and anisotropic cases based on the configuration.
+        4.  Adds the independent atomic coordinate parameters (xyz) to the recipe.
+        """
         for i, phase in enumerate(self.cpdf._generators):
+            # Determine the space group from the configuration.
             spaceGroup = str(list(self.config.ciffile.values())[i][0])
-            sgpar = constrainAsSpaceGroup(getattr(self.cpdf, phase).phase, spaceGroup, sgoffset=self.config.sgoffset)
+            phase_generator = getattr(self.cpdf, phase)
+            
+            # Apply space group constraints to get the set of independent parameters.
+            sgpar = constrainAsSpaceGroup(phase_generator.phase, spaceGroup, sgoffset=self.config.sgoffset)
 
-            #------------------ 6 ------------------#
-            # add lattice parameters
+            # Add independent lattice parameters to the recipe.
             for par in sgpar.latpars:
-                self.fit.addVar(par, value=par.value, name=f'{par.name}_{phase}', fixed=False, tags=['lat', str(phase), f'lat_{phase}'])
+                self.fit.addVar(par, value=par.value, name=f'{par.name}_{phase}',
+                                fixed=False, tags=['lat', str(phase), f'lat_{phase}'])
 
-            #------------------ 7 ------------------#
-            # atomic displacement parameters ADPs
-            if self.config.anisotropic:
-                getattr(self.cpdf, phase).stru.anisotropy = True
-                print('Adding anisotropic displacement parameters.')
-                for par in sgpar.adppars:
-                    atom = par.par.obj
-                    atom_label = atom.label
-                    atom_symbol = atom.element
-                    # take Uiso initial from detailed_composition
-                    u0 = self.config.detailed_composition.get(atom_symbol, {}).get('Uiso', 0.01)
-                    name = f"{par.name}_{atom_label}_{phase}"
-                    tags = ['adp', f"adp_{atom_label}", f"adp_{atom_symbol}_{phase}", f"adp_{phase}", f"adp_{atom_symbol}", str(phase)]
-                    self.fit.addVar(par, value=u0, name=name, tags=tags)
-                    self.fit.restrain(par, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
-            else:
-                print('Adding isotropic displacement parameters as unified values.')
-                # Unconstrain all Uiso parameters that were automatically
-                # constrained by the space group symmetry.
-                for atom in getattr(self.cpdf, phase).phase.getScatterers():
-                    if atom.Uiso.constrained:
-                        self.fit.unconstrain(atom.Uiso)
+            # Add atomic displacement parameters (ADPs).
+            self._add_adp_parameters(phase, sgpar)
+            
+            # Add atomic coordinate parameters (XYZ).
+            self._add_xyz_parameters(phase, sgpar)
+
+    def _add_adp_parameters(self, phase, sgpar):
+        """
+        Adds atomic displacement parameters (ADPs) for a phase to the recipe.
+        
+        This sub-helper method handles both anisotropic (Uij) and isotropic (Uiso)
+        scenarios based on the `self.config.anisotropic` flag.
+        
+        Args:
+            phase (str): The name of the current phase (e.g., 'Phase0').
+            sgpar: The space group parameter object from `constrainAsSpaceGroup`.
+        """
+        if self.config.anisotropic:
+            print('Adding anisotropic displacement parameters.')
+            getattr(self.cpdf, phase).stru.anisotropy = True
+            for par in sgpar.adppars:
+                atom = par.par.obj
+                u0 = self.config.detailed_composition.get(atom.element, {}).get('Uiso', 0.01)
+                name = f"{par.name}_{atom.label}_{phase}"
+                tags = ['adp', f"adp_{atom.label}", f"adp_{atom.element}_{phase}", f"adp_{phase}", f"adp_{atom.element}", str(phase)]
+                self.fit.addVar(par, value=u0, name=name, tags=tags)
+                self.fit.restrain(par, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
+        else:
+            print('Adding isotropic displacement parameters as unified values per element.')
+            phase_generator = getattr(self.cpdf, phase)
+            
+            # Unconstrain all Uiso parameters initially constrained by symmetry.
+            for atom in phase_generator.phase.getScatterers():
+                if atom.Uiso.constrained:
+                    self.fit.unconstrain(atom.Uiso)
+            
+            # Create a single, shared refinable variable for each element type.
+            element_vars = {}
+            for el, info in self.config.detailed_composition.items():
+                u0 = info['Uiso']
+                var_name = f"Uiso_{el}_{phase}"
+                element_vars[el] = self.fit.newVar(var_name, value=u0, tags=['adp', el, str(phase)])
+                self.fit.restrain(element_vars[el], lb=0.0, ub=0.1, scaled=True, sig=0.0005)
+            
+            # Constrain each atom's Uiso to its corresponding element-level variable.
+            for atom in phase_generator.phase.getScatterers():
+                if atom.element in element_vars:
+                    self.fit.constrain(atom.Uiso, element_vars[atom.element])
+
+    def _add_xyz_parameters(self, phase, sgpar):
+        """
+        Adds atomic coordinate parameters (XYZ) for a phase to the recipe.
+        
+        This sub-helper method iterates through the independent coordinate
+        parameters determined by the symmetry analysis and adds them to the recipe.
+        
+        Args:
+            phase (str): The name of the current phase (e.g., 'Phase0').
+            sgpar: The space group parameter object from `constrainAsSpaceGroup`.
+        """
+        self.added_params[str(phase)] = set()
+        mapped_xyzpars = self.helper.map_sgpar_params(sgpar, 'xyzpars')
+        
+        for par in sgpar.xyzpars:
+            try:
+                atom_symbol = par.par.obj.element
+                p_name = par.name
+                mapped_name, atom_label = mapped_xyzpars[p_name]
+                name_long = f"{mapped_name}_{phase}"
+                tags = ['xyz', f'xyz_{atom_symbol}', f'xyz_{atom_symbol}_{phase}', f'xyz_{phase}', str(phase)]
                 
-                # Create a single, shared refinable variable for each element.
-                element_vars = {}
-                for el, info in self.config.detailed_composition.items():
-                    u0 = info['Uiso']
-                    element_vars[el] = self.fit.newVar(f"Uiso_{el}_{phase}", value=u0, tags=['adp', el, str(phase)])
-                    self.fit.restrain(element_vars[el], lb=0.0, ub=0.1, scaled=True, sig=0.0005)
-                
-                # Now that they are free, directly constrain every atom's
-                # Uiso to the appropriate shared variable.
-                for atom in getattr(self.cpdf, phase).phase.getScatterers():
-                    if atom.element in element_vars:
-                        self.fit.constrain(atom.Uiso, element_vars[atom.element])
-
-            #------------------ 8 ------------------#
-            # atom positions XYZ
-            self.added_params[str(phase)] = set()
-            mapped_xyzpars = self.helper.map_sgpar_params(sgpar, 'xyzpars')
-            for par in sgpar.xyzpars:
-                try:
-                    atom_symbol = par.par.obj.element
-                    p_name = par.name
-                    mapped_name, atom_label = mapped_xyzpars[p_name]
-                    name_long = f"{mapped_name}_{phase}"
-                    tags = ['xyz', f'xyz_{atom_symbol}', f'xyz_{atom_symbol}_{phase}', f'xyz_{phase}', str(phase)]
-                    self.fit.addVar(par, name=name_long, tags=tags)
-                    self.added_params[str(phase)].add(atom_label)
-                    print(f"Constrained {name_long} at {par.par.value}: atom position added to variables.")
-                except Exception:
-                    pass
-
-        #------------------ 10 ------------------#
+                # Add the parameter to the recipe.
+                self.fit.addVar(par, name=name_long, tags=tags)
+                self.added_params[str(phase)].add(atom_label)
+                print(f"Constrained {name_long} at {par.par.value}: atom position added to variables.")
+            except Exception:
+                # This can happen if a parameter is not truly independent or already handled.
+                pass
+    
+    def _add_nanoparticle_shape_function(self):
+        """
+        Private helper to add a nanoparticle size broadening (shape) function.
+        
+        This method registers the `sphericalCF` function for each phase, which
+        models the damping of the PDF signal due to finite crystallite size.
+        It updates the recipe's equation to include this function and adds the
+        corresponding `psize` parameter.
+        """
+        # Register the spherical characteristic function for each phase.
         for phase in self.cpdf._generators:
             self.cpdf.registerFunction(sphericalCF, name=f'sphere_{phase}', argnames=['r', f'psize_{phase}'])
         
-        phase_equation_scf = ' + '.join([f's_{phase}*{phase}*sphere_{phase}' for phase in self.cpdf._generators])
+        # Update the equation to multiply each phase by its shape function.
+        phase_equation_scf = ' + '.join(
+            [f's_{phase}*{phase}*sphere_{phase}' for phase in self.cpdf._generators]
+        )
         self.cpdf.setEquation(phase_equation_scf)
-        print('equation:', self.cpdf.getEquation())
+        print('Updated equation with shape function:', self.cpdf.getEquation())
 
+        # Add and restrain the particle size ('psize') parameter for each phase.
         for phase in self.cpdf._generators:
-            self.fit.addVar(getattr(self.cpdf, f'psize_{phase}'), value=100.0, fixed=False, tags=['psize', str(phase), f'psize_{phase}'])
-            self.fit.restrain(getattr(self.cpdf, f'psize_{phase}'), lb=0.0, scaled=True, sig=0.1)
+            psize_var = getattr(self.cpdf, f'psize_{phase}')
+            self.fit.addVar(psize_var, value=100.0, fixed=False, tags=['psize', str(phase), f'psize_{phase}'])
+            self.fit.restrain(psize_var, lb=0.0, scaled=True, sig=0.1)
 
-        # show diagnostic information
-        self.fit.fithooks[0].verbose = 2
-
-        #------------------ 11 ------------------#
+    def _calculate_initial_bond_vectors(self):
+        """
+        Private helper to perform an initial calculation of bond vectors.
+        
+        This method uses the `StructureAnalyzer` to calculate all relevant
+        bond lengths and angles from the initial, unrefined structure. The
+        results are stored in the `self.global_bond_vectors` dictionary for
+        later use in applying geometric restraints.
+        """
         for phase in self.cpdf._generators:
-            print(f"Calculating bond vectors for {phase}")
-            bond_vectors = self.analyzer.get_polyhedral_bond_vectors(getattr(self.cpdf, phase).phase)
+            print(f"Calculating initial bond vectors for {phase}...")
+            phase_generator = getattr(self.cpdf, phase)
+            bond_vectors = self.analyzer.get_polyhedral_bond_vectors(phase_generator.phase)
             self.global_bond_vectors[str(phase)] = bond_vectors
+            
+            
+            
 
-        return self.fit
 
     def modify_recipe_spacegroup(self, spacegroup_list, enforce_pseudo_cubic = False):
         """
