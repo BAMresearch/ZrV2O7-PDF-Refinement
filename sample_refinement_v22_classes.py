@@ -3029,7 +3029,7 @@ class PDFWorkflowManager(PDFRefinement):
             if checkpoint_data:
                 # SCENARIO A: RESUME from a checkpoint (highest priority).
                 self.log("Resuming from checkpoint.")
-                self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.cfile, self.config.myrange)
+                self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.ciffile, self.config.myrange)
                 self.fit = self.build_initial_recipe()
     
                 # Apply the parameters saved in the checkpoint file.
