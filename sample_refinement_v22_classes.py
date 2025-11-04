@@ -1772,21 +1772,6 @@ class PDFRefinement:
             for atom in phase_generator.phase.getScatterers():
                 if atom.element in element_vars:
                     self.fit.constrain(atom.Uiso, element_vars[atom.element])
-                    # Constrain Uiso, U11, U22, U33 to shared variable
-                    self.fit.constrain(atom.U11, element_vars[atom.element])
-                    self.fit.constrain(atom.U12, element_vars[atom.element])
-                    self.fit.constrain(atom.U33, element_vars[atom.element])
-        
-                    # Set off-diagonal components to zero numerically
-                    atom.U12.value = 0.0
-                    atom.U13.value = 0.0
-                    atom.U23.value = 0.0
-                    atom.U21.value = 0.0
-                    atom.U31.value = 0.0
-                    atom.U32.value = 0.0
-    
-
-
 
     def _add_xyz_parameters(self, phase, sgpar):
         """
@@ -1954,165 +1939,51 @@ class PDFRefinement:
                         pass # Ignore if parameter already exists
             except Exception as e:
                 print(f"Error applying space group to phase {phase}: {e}")
-                
-                
-        # if enforce_pseudo_cubic:
-        #     print("\n[INFO] Enforcing pseudo-cubic lattice constraints.")
-        #     # Step 6: Enforce Pseudo-Cubic Constraints for Lattice Parameters and anisotropic ADPs
-        #     old_lattice_vars = {}
-        #     for name in self.fit.names:
-        #         if name.startswith(('a_', 'b_', 'c_', 'alpha_', 'beta_', 'gamma_')):
-        #             var_value = getattr(self.fit, name).value
-        #             old_lattice_vars[name] = var_value
-        
-        #     for name in old_lattice_vars.keys():
-        #         #try:
-        #         self.fit.unconstrain(getattr(self.fit, name))
-        #         # fit.clearConstraints(getattr(fit, name))
-        #         # fit.clearRestraints(getattr(fit, name))
-        #         self.fit.delVar(getattr(self.fit, name))
-        #         print(f"{name}: old variable deleted")
-        #         #except Exception:
-        #          #   pass
-        
-        #     for phase in self.cpdf._generators:
-        #         spaceGroup = str(list(self.config.ciffile.values())[0][0])
-        #         sgpar = constrainAsSpaceGroup(getattr(self.cpdf, phase).phase, spaceGroup, sgoffset=self.config.sgoffset)
-        #         for par in sgpar.latpars:
-        #             name = par.name + '_' + str(phase)
-        #             try:
-        #                 old_value = old_lattice_vars[name]
-        #                 self.fit.addVar(par, value=old_value, name=name, fixed=False, tags=['lat', str(phase), 'lat_' + str(phase)])
-        #                 print(f"Constrained {name} at {old_value}.")
-        #             except Exception:
-        #                 pass
-                
-                
-        #         # Direct intervention to synchronize numerical values
-        #         lattice = getattr(self.cpdf, phase).phase.lattice
-        #         a_val = lattice.a.value
-        #         lattice.b.value = a_val
-        #         lattice.c.value = a_val
-
-        #         # Constrain b and c parameters to the a parameter
-        #         # self.fit.unconstrain(lattice.b)
-        #         # self.fit.unconstrain(lattice.c)
-        #         # self.fit.constrain(lattice.b,
-        #         #                    getattr(self.fit, f"a_{phase}"))
-        #         # self.fit.constrain(lattice.c,
-        #         #                    getattr(self.fit, f"a_{phase}"))
-        #         # print(f"Forcing pseudo-cubic lattice for {phase}: a=b=c={a_val}")
-        
-        #     # strip out any constraint whose .par is None
-        #     self.fit._oconstraints[:] = [c for c in self.fit._oconstraints if c.par is not None]
-
-        # ---- begin replacement enforce_pseudo_cubic block ----
         if enforce_pseudo_cubic:
             print("\n[INFO] Enforcing pseudo-cubic lattice constraints.")
-            # snapshot current lattice numeric values if present
+            # Step 6: Enforce Pseudo-Cubic Constraints for Lattice Parameters and anisotropic ADPs
             old_lattice_vars = {}
-            for name in list(self.fit.names):
+            for name in self.fit.names:
                 if name.startswith(('a_', 'b_', 'c_', 'alpha_', 'beta_', 'gamma_')):
-                    try:
-                        old_lattice_vars[name] = getattr(self.fit, name).value
-                    except Exception:
-                        pass
-        
-            # safe helpers
-            def _has_var(fit, name):
-                return hasattr(fit, name)
-        
-            def _remove_constraints_on_par(fit, par):
-                # remove any constraint objects whose .par is this parameter
-                fit._oconstraints[:] = [c for c in fit._oconstraints if c.par is not par]
-        
-            def _is_par_constrained(fit, par):
-                return any(c.par is par for c in fit._oconstraints)
-        
-            # Recreate lattice parameters from the project's reference (high-symmetry)
+                    var_value = getattr(self.fit, name).value
+                    old_lattice_vars[name] = var_value
+
+            for name in old_lattice_vars.keys():
+                # try:
+                self.fit.unconstrain(getattr(self.fit, name))
+                # fit.clearConstraints(getattr(fit, name))
+                # fit.clearRestraints(getattr(fit, name))
+                self.fit.delVar(getattr(self.fit, name))
+                print(f"{name}: old variable deleted")
+                # except Exception:
+                #   pass
+
             for phase in self.cpdf._generators:
-                # determine reference space group from config (first cif entry)
-                ref_spaceGroup = str(list(self.config.ciffile.values())[0][0])
-                sgpar = constrainAsSpaceGroup(getattr(self.cpdf, phase).phase,
-                                              ref_spaceGroup,
+                spaceGroup = str(list(self.config.ciffile.values())[0][0])
+                sgpar = constrainAsSpaceGroup(getattr(self.cpdf, phase).phase, spaceGroup,
                                               sgoffset=self.config.sgoffset)
-        
-                # Add latpars into fit: add 'a' first as free; 'b' and 'c' will be added then constrained to 'a'.
                 for par in sgpar.latpars:
-                    par_local_name = f"{par.name}_{phase}"
-                    old_value = old_lattice_vars.get(par_local_name, par.par.value)
+                    name = par.name + '_' + str(phase)
                     try:
-                        # Make 'a' free, add 'b' and 'c' too (we will constrain them to a)
-                        if par.name == 'a':
-                            self.fit.addVar(par, value=old_value, name=par_local_name,
-                                            fixed=False, tags=['lat', str(phase), 'lat_' + str(phase)])
-                        else:
-                            # add b and c as variables (not fixed) so we can create constraints tying them to a
-                            self.fit.addVar(par, value=old_value, name=par_local_name,
-                                            fixed=False, tags=['lat', str(phase), 'lat_' + str(phase)])
-                        print(f"[LAT] Added lattice var {par_local_name} = {old_value}")
-                    except Exception as e:
-                        # if already exists, ignore but continue
-                        print(f"[LAT] addVar skip {par_local_name}: {e}")
-        
-                # Now enforce b and c to follow a (safely: remove prior constraints first)
-                a_name = f"a_{phase}"
-                b_name = f"b_{phase}"
-                c_name = f"c_{phase}"
-        
-                if not _has_var(self.fit, a_name):
-                    print(f"[WARN] a parameter missing for {phase}: {a_name}")
-                    continue
-        
-                a_par = getattr(self.fit, a_name)
-        
-                # if b/c not present, try to skip gracefully
-                for ax_name in (b_name, c_name):
-                    if not _has_var(self.fit, ax_name):
-                        print(f"[WARN] lattice param {ax_name} not present; skipping constraint.")
-                        continue
-                    par_obj = getattr(self.fit, ax_name)
-        
-                    # remove any existing constraints that target this par (to avoid double-constraint errors)
-                    _remove_constraints_on_par(self.fit, par_obj)
-        
-                    # create constraint tying par_obj to a_par IF not already constrained
-                    if not _is_par_constrained(self.fit, par_obj):
-                        try:
-                            self.fit.constrain(par_obj, a_par)
-                            print(f"[LAT] Constrained strongly {ax_name} to {a_name}")
-                        except Exception as e:
-                            print(f"[ERROR] could not constrain {ax_name} to {a_name}: {e}")
-        
-                # ensure numerical values are consistent (sync lattice object's values)
-                lattice = getattr(self.cpdf, phase).phase.lattice
-                try:
-                    a_val = getattr(self.fit, a_name).value
-                    lattice.a.value = a_val
-                    lattice.b.value = a_val
-                    lattice.c.value = a_val
-                except Exception:
-                    # fallback: use lattice.a value if fit var missing
-                    try:
-                        a_val = lattice.a.value
-                        lattice.b.value = a_val
-                        lattice.c.value = a_val
+                        old_value = old_lattice_vars[name]
+                        self.fit.addVar(par, value=old_value, name=name, fixed=False,
+                                        tags=['lat', str(phase), 'lat_' + str(phase)])
+                        print(f"Constrained {name} at {old_value}.")
                     except Exception:
                         pass
-        
-            # cleanup: remove any constraint entries whose .par is None or whose subject param no longer exists
-            _existing_pars = {getattr(self.fit, n) for n in self.fit.names if hasattr(self.fit, n)}
-            new_oconstraints = []
-            for c in list(self.fit._oconstraints):
-                if c.par is None:
-                    continue
-                if c.par not in _existing_pars:
-                    # stale constraint referencing removed par -> drop
-                    continue
-                new_oconstraints.append(c)
-            self.fit._oconstraints[:] = new_oconstraints
-        # ---- end replacement enforce_pseudo_cubic block ----
-        
+
+                # Direct intervention to synchronize numerical values
+                lattice = getattr(self.cpdf, phase).phase.lattice
+                a_val = lattice.a.value
+                lattice.b.value = a_val
+                lattice.c.value = a_val
+                print(f"Forcing pseudo-cubic lattice for {phase}: a=b=c={a_val}")
+
+            # strip out any constraint whose .par is None
+            self.fit._oconstraints[:] = [c for c in self.fit._oconstraints if c.par is not None]
+                
+
+
 
 
         return self.fit   
@@ -3158,7 +3029,7 @@ class PDFWorkflowManager(PDFRefinement):
             if checkpoint_data:
                 # SCENARIO A: RESUME from a checkpoint (highest priority).
                 self.log("Resuming from checkpoint.")
-                self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.ciffile, self.config.myrange)
+                self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.cfile, self.config.myrange)
                 self.fit = self.build_initial_recipe()
     
                 # Apply the parameters saved in the checkpoint file.
