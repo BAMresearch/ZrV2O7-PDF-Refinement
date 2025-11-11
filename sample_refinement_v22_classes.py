@@ -1848,7 +1848,7 @@ class PDFRefinement:
             
 
 
-    def modify_recipe_spacegroup(self, spacegroup_list, enforce_pseudo_cubic = False):
+    def modify_recipe_spacegroup(self, spacegroup_list, enforce_other_lattice = False):
         """
         Modifies the FitRecipe to apply a new space group symmetry.
         
@@ -1939,8 +1939,8 @@ class PDFRefinement:
                         pass # Ignore if parameter already exists
             except Exception as e:
                 print(f"Error applying space group to phase {phase}: {e}")
-        if enforce_pseudo_cubic:
-            print("\n[INFO] Enforcing pseudo-cubic lattice constraints.")
+        if enforce_other_lattice:
+            print("\n[INFO] Enforcing other symmetry lattice constraints.")
             # Step 6: Enforce Pseudo-Cubic Constraints for Lattice Parameters and anisotropic ADPs
             old_lattice_vars = {}
             for name in self.fit.names:
@@ -1957,6 +1957,14 @@ class PDFRefinement:
                 print(f"{name}: old variable deleted")
                 # except Exception:
                 #   pass
+            
+                # Direct intervention to synchronize numerical values
+            #for phase in self.cpdf._generators:
+                #lattice = getattr(self.cpdf, phase).phase.lattice
+                #a_val = lattice.a.value
+                #lattice.b.value = a_val
+                #lattice.c.value = a_val
+                #print(f"Forcing pseudo-cubic lattice for {phase}: a=b=c={a_val}")
 
             for phase in self.cpdf._generators:
                 spaceGroup = str(list(self.config.ciffile.values())[0][0])
@@ -1972,12 +1980,7 @@ class PDFRefinement:
                     except Exception:
                         pass
 
-                # Direct intervention to synchronize numerical values
-                lattice = getattr(self.cpdf, phase).phase.lattice
-                a_val = lattice.a.value
-                lattice.b.value = a_val
-                lattice.c.value = a_val
-                print(f"Forcing pseudo-cubic lattice for {phase}: a=b=c={a_val}")
+
 
             # strip out any constraint whose .par is None
             self.fit._oconstraints[:] = [c for c in self.fit._oconstraints if c.par is not None]
@@ -3029,7 +3032,7 @@ class PDFWorkflowManager(PDFRefinement):
             if checkpoint_data:
                 # SCENARIO A: RESUME from a checkpoint (highest priority).
                 self.log("Resuming from checkpoint.")
-                self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.cfile, self.config.myrange)
+                self.cpdf = self.pdf_manager.build_contribution(r, g, cfg, self.config.ciffile, self.config.myrange)
                 self.fit = self.build_initial_recipe()
     
                 # Apply the parameters saved in the checkpoint file.
@@ -3072,8 +3075,8 @@ class PDFWorkflowManager(PDFRefinement):
     
                 # Modify the model's space group if specified for this step.
                 if 'space_group' in step_params:
-                    enforce_cubic = step_params.get('enforce_pseudo_cubic', True)
-                    self.modify_recipe_spacegroup(step_params['space_group'], enforce_pseudo_cubic=enforce_cubic)
+                    enforce_cubic = step_params.get('enforce_other_lattice', True)
+                    self.modify_recipe_spacegroup(step_params['space_group'], enforce_other_lattice=enforce_cubic)
     
                 # Apply geometric constraints if specified for this step.
                 if 'constraints' in step_params:
