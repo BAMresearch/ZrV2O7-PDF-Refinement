@@ -160,6 +160,51 @@ class RefinementConfig:
         if not os.path.isdir(self.output_results_path):
             os.makedirs(self.output_results_path)
         print(f"\nSet new output directory: {self.output_results_path}")
+        
+# =============================================================================
+# HELPER CLASSES FOR FORENSICS 
+# =============================================================================
+
+class _ForensicsMockParam:
+    """Internal helper: Wraps a float so it has a .value attribute."""
+    def __init__(self, value):
+        self.value = value
+
+class _ForensicsMockLattice:
+    """Internal helper: Wraps a lattice so a, b, c have .value attributes."""
+    def __init__(self, lat):
+        self.a = _ForensicsMockParam(lat.a)
+        self.b = _ForensicsMockParam(lat.b)
+        self.c = _ForensicsMockParam(lat.c)
+        self.alpha = _ForensicsMockParam(lat.alpha)
+        self.beta = _ForensicsMockParam(lat.beta)
+        self.gamma = _ForensicsMockParam(lat.gamma)
+
+class _ForensicsMockAtom:
+    """Internal helper: Wraps an atom so x, y, z have .value attributes."""
+    def __init__(self, atom):
+        # FIX: Use 'label' if 'name' is missing (diffpy atoms usually have label)
+        self.name = getattr(atom, 'name', atom.label)
+        self.element = atom.element
+        self.label = atom.label
+        self.x = _ForensicsMockParam(atom.x)
+        self.y = _ForensicsMockParam(atom.y)
+        self.z = _ForensicsMockParam(atom.z)
+        
+class _ForensicsWrapper:
+    """
+    Wraps a raw diffpy Structure object to mimic the interface of a 
+    refined PDFGenerator phase. This tricks the StructureAnalyzer 
+    into working with raw CIFs without modifying its code.
+    """
+    def __init__(self, structure):
+        self.lattice = _ForensicsMockLattice(structure.lattice)
+        self.scatterers = [_ForensicsMockAtom(a) for a in structure]
+        self.phase = self # StructureAnalyzer expects to call phase.lattice
+
+    def getScatterers(self):
+        return self.scatterers        
+
 
 
 
@@ -2726,9 +2771,9 @@ class PDFRefinement:
         print(f"\nCopied xyz coordinates for {n_copied} matching atoms.")
 
             
-    #=============================================================================
-    # # Simulate PDFs
-    # # =============================================================================
+    #===========================================================================
+    # Simulate PDFs
+    # ==========================================================================
     def simulate_pdf_workflow(self, main_config, sim_config):
         """Runs a complete, self-contained PDF simulation workflow.
         
@@ -2883,7 +2928,303 @@ class PDFRefinement:
         
         print("\nSimulation workflow finished successfully.")
         return cpdf_sim
-    
+        
+    #===========================================================================
+    # Deeper structure post-fitting analysis
+    # ==========================================================================
+    def run_structural_forensics(self, cif_path, target_bond='V-O', outlier_threshold=2.0):
+        """
+        Performs a deep statistical analysis of bond lengths in a given CIF file.
+        Features:
+          - Sorts bonds from longest to shortest.
+          - Identifies outliers > threshold.
+          - Calculates OUTLIER PERCENTAGES for each connectivity type.
+          - Calculates DEVIATION PERCENTAGES (Mean +/- 1 sigma) for each type.
+          - DYNAMICALLY infers connectivity types (Bridge vs Linker) from composition.
+        """
+        print("\n==========================================================")
+        print(f"           STRUCTURAL FORENSICS REPORT            ")
+        print("==========================================================")
+        print(f"File: {cif_path}")
+        print(f"Target Bond: {target_bond}")
+
+        # 1. Load and Wrap the structure
+        try:
+            raw_structure = loadStructure(cif_path)
+            wrapper = _ForensicsWrapper(raw_structure)
+        except Exception as e:
+            print(f"[ERROR] Could not load CIF file: {e}")
+            return
+
+        # 2. Get All Bonds
+        try:
+            all_bonds = self.analyzer.get_polyhedral_bond_vectors(wrapper)
+        except Exception as e:
+            print(f"[ERROR] Analyzer failed: {e}")
+            return
+
+        if target_bond not in all_bonds:
+            print(f"[WARNING] No bonds of type '{target_bond}' found.")
+            return
+
+        # 3. Build Connectivity Map
+        oxygen_connectivity = {}
+        for b_type, bonds in all_bonds.items():
+            if 'O-O' in b_type: continue 
+            for bond in bonds:
+                o_idx = bond['atom2']['index']
+                cation_sym = bond['central_atom']['symbol']
+                if o_idx not in oxygen_connectivity:
+                    oxygen_connectivity[o_idx] = []
+                oxygen_connectivity[o_idx].append(cation_sym)
+
+        # 4. Analyze Target Bonds
+        target_list = all_bonds[target_bond]
+        lengths = np.array([b['length'] for b in target_list])
+        
+        # Sort Master List by Length (Highest to Lowest)
+        target_list.sort(key=lambda x: x['length'], reverse=True)
+
+        # --- DYNAMIC Helper: Classify Bond Connectivity ---
+        def get_connectivity_type(bond):
+            o_idx = bond['atom2']['index']
+            vertex_sym = bond['atom2']['symbol'] # e.g. "O"
+            cats = oxygen_connectivity.get(o_idx, [])
+            
+            if not cats: return "Isolated"
+            
+            # Get unique cation types connected to this vertex
+            unique_cats = sorted(list(set(cats)))
+            n_total = len(cats)
+            n_unique = len(unique_cats)
+            
+            if n_total == 1:
+                return f"{cats[0]}-{vertex_sym} (Terminal)"
+            
+            elif n_unique == 1:
+                # Multiple connections, but all same element (e.g. V-O-V)
+                sym = unique_cats[0]
+                return f"{sym}-{vertex_sym}-{sym} (Bridge)"
+            
+            else:
+                # Multiple connections, different elements (e.g. V-O-Zr)
+                # Join them to form string like "V-O-Zr"
+                conn_str = f"-{vertex_sym}-".join(unique_cats)
+                return f"{conn_str} (Linker)"
+
+        # --- Helper: Determine Location ---
+        def get_location_type(bond):
+            for atom_pos in [bond['atom1']['position'], bond['atom2']['position']]:
+                if any(c < 0.05 or c > 0.95 for c in atom_pos):
+                    return "EDGE"
+            return "BULK"
+
+        # 5. Global Stats Print
+        mean_len = np.mean(lengths)
+        std_len = np.std(lengths)
+        
+        print(f"\n[Global Statistics]")
+        print(f"  Count:   {len(lengths)}")
+        print(f"  Mean:    {mean_len:.4f} Å")
+        print(f"  Std Dev: {std_len:.4f} Å")
+        print(f"  Range:   {np.min(lengths):.4f} - {np.max(lengths):.4f} Å")
+        print(f"  1-Sigma: {mean_len - std_len:.4f} - {mean_len + std_len:.4f} Å")
+
+        # 6. Pre-Classify All Bonds for Statistics
+        bonds_stats = {} 
+
+        for bond in target_list:
+            ctype = get_connectivity_type(bond)
+            if ctype not in bonds_stats:
+                bonds_stats[ctype] = {'total': 0, 'thresh_outliers': 0, 'sigma_devs': 0}
+            
+            bonds_stats[ctype]['total'] += 1
+            
+            # Check Threshold
+            if bond['length'] > outlier_threshold:
+                bonds_stats[ctype]['thresh_outliers'] += 1
+            
+            # Check Sigma Deviation
+            if bond['length'] > (mean_len + std_len) or bond['length'] < (mean_len - std_len):
+                bonds_stats[ctype]['sigma_devs'] += 1
+
+        # 7. Outlier Table (Detailed List)
+        print(f"\n[User Threshold Outliers (> {outlier_threshold} Å)]")
+        print(f"{'Bond ID':<15} {'Length':<10} {'Location':<15} {'Connectivity':<25}")
+        print("-" * 70)
+        
+        count_thresh = 0
+        for bond in target_list:
+            if bond['length'] > outlier_threshold:
+                v_lbl = bond['atom1']['label']
+                o_lbl = bond['atom2']['label']
+                loc = get_location_type(bond)
+                conn = get_connectivity_type(bond)
+                print(f"{v_lbl}-{o_lbl:<8} {bond['length']:.4f}     {loc:<15} {conn:<25}")
+                count_thresh += 1
+        if count_thresh == 0: print("  No outliers detected above threshold.")
+
+        # 8. Statistical Deviations Table (Detailed List)
+        print(f"\n[Statistical Deviations (Outside Mean ± 1σ)]")
+        print(f"Bounds: < {mean_len - std_len:.4f} Å  OR  > {mean_len + std_len:.4f} Å")
+        print(f"{'Bond ID':<15} {'Length':<10} {'Location':<15} {'Connectivity':<25}")
+        print("-" * 70)
+
+        count_stat = 0
+        for bond in target_list:
+            if bond['length'] > (mean_len + std_len) or bond['length'] < (mean_len - std_len):
+                v_lbl = bond['atom1']['label']
+                o_lbl = bond['atom2']['label']
+                loc = get_location_type(bond)
+                conn = get_connectivity_type(bond)
+                print(f"{v_lbl}-{o_lbl:<8} {bond['length']:.4f}     {loc:<15} {conn:<25}")
+                count_stat += 1
+        if count_stat == 0: print("  Distribution is tight; no 1-sigma outliers.")
+
+        # 9. SUMMARY TABLE 1: User Threshold
+        print(f"\n[Outlier Statistics by Bond Type (Threshold: > {outlier_threshold} Å)]")
+        print(f"{'Connectivity Type':<25} {'Total Bonds':<12} {'Outliers':<10} {'% Outlier':<10}")
+        print("-" * 60)
+        
+        for ctype, stats in bonds_stats.items():
+            total = stats['total']
+            val = stats['thresh_outliers']
+            pct = (val / total) * 100 if total > 0 else 0.0
+            print(f"{ctype:<25} {total:<12} {val:<10} {pct:.1f}%")
+
+        # 10. SUMMARY TABLE 2: Statistical Deviations
+        print(f"\n[Statistical Deviation Statistics by Bond Type (Outside Mean ± 1σ)]")
+        print(f"{'Connectivity Type':<25} {'Total Bonds':<12} {'Deviations':<10} {'% Deviant':<10}")
+        print("-" * 60)
+        
+        for ctype, stats in bonds_stats.items():
+            total = stats['total']
+            val = stats['sigma_devs']
+            pct = (val / total) * 100 if total > 0 else 0.0
+            print(f"{ctype:<25} {total:<12} {val:<10} {pct:.1f}%")
+
+        print("==========================================================\n")
+        
+        
+    def visualize_structural_forensics(self, cif_path, target_bond='V-O', outlier_threshold=2.0, output_dir='forensics_plots'):
+        """
+        Generates graphical visualizations of the structural forensics analysis.
+        Uses DYNAMIC connectivity inference.
+        """
+        import os
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        import pandas as pd
+
+        print(f"\n[INFO] Generating forensics visualizations in: {output_dir}")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # --- 1. Data Extraction ---
+        try:
+            raw_structure = loadStructure(cif_path)
+            wrapper = _ForensicsWrapper(raw_structure)
+            all_bonds = self.analyzer.get_polyhedral_bond_vectors(wrapper)
+        except Exception as e:
+            print(f"[ERROR] Visualization failed during data loading: {e}")
+            return
+
+        if target_bond not in all_bonds:
+            print(f"[WARNING] No bonds of type '{target_bond}' found.")
+            return
+
+        # Build Connectivity Map
+        oxygen_connectivity = {}
+        for b_type, bonds in all_bonds.items():
+            if 'O-O' in b_type: continue
+            for bond in bonds:
+                o_idx = bond['atom2']['index']
+                cat = bond['central_atom']['symbol']
+                oxygen_connectivity.setdefault(o_idx, []).append(cat)
+
+        # --- DYNAMIC Helpers ---
+        def get_conn_type(bond):
+            o_idx = bond['atom2']['index']
+            vertex_sym = bond['atom2']['symbol']
+            cats = oxygen_connectivity.get(o_idx, [])
+            
+            if not cats: return "Isolated"
+            unique_cats = sorted(list(set(cats)))
+            n_total = len(cats)
+            n_unique = len(unique_cats)
+            
+            if n_total == 1:
+                return f"Terminal ({cats[0]}-{vertex_sym})"
+            elif n_unique == 1:
+                return f"Bridge ({unique_cats[0]}-{vertex_sym}-{unique_cats[0]})"
+            else:
+                conn_str = f"-{vertex_sym}-".join(unique_cats)
+                return f"Linker ({conn_str})"
+
+        def get_loc_type(bond):
+            for pos in [bond['atom1']['position'], bond['atom2']['position']]:
+                if any(c < 0.05 or c > 0.95 for c in pos): return "EDGE"
+            return "BULK"
+
+        # Build DataFrame
+        data = []
+        target_list = all_bonds[target_bond]
+        mean_len = np.mean([b['length'] for b in target_list])
+        std_len = np.std([b['length'] for b in target_list])
+
+        for bond in target_list:
+            data.append({
+                'Length': bond['length'],
+                'Connectivity': get_conn_type(bond),
+                'Location': get_loc_type(bond),
+                'Is_Threshold_Outlier': bond['length'] > outlier_threshold,
+                'Is_Sigma_Outlier': not (mean_len - std_len <= bond['length'] <= mean_len + std_len)
+            })
+        
+        df = pd.DataFrame(data)
+
+        # --- Plotting Setup ---
+        sns.set_theme(style="whitegrid")
+        
+        # PLOT 1: Violin Plot
+        plt.figure(figsize=(10, 6))
+        sns.violinplot(data=df, x='Connectivity', y='Length', inner='quart', palette="muted", linewidth=1.5)
+        sns.stripplot(data=df, x='Connectivity', y='Length', color='black', alpha=0.3, size=3)
+        plt.axhline(outlier_threshold, color='red', linestyle='--', label=f'Threshold ({outlier_threshold} Å)')
+        plt.axhline(mean_len, color='blue', linestyle=':', label=f'Mean ({mean_len:.2f} Å)')
+        plt.title(f'{target_bond} Bond Length Distributions by Type')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '1_bond_distributions.png'), dpi=300)
+        plt.close()
+
+        # PLOT 2: Outlier Percentage
+        summary = df.groupby('Connectivity').apply(lambda x: pd.Series({
+            'Threshold %': (x['Is_Threshold_Outlier'].sum() / len(x)) * 100,
+            'Sigma %': (x['Is_Sigma_Outlier'].sum() / len(x)) * 100
+        })).reset_index()
+        summary = summary.melt(id_vars='Connectivity', var_name='Metric', value_name='Percentage')
+
+        plt.figure(figsize=(10, 6))
+        sns.barplot(data=summary, x='Connectivity', y='Percentage', hue='Metric', palette='viridis')
+        plt.title(f'Percentage of {target_bond} Outliers by Connectivity')
+        plt.ylabel('Outlier Percentage (%)')
+        plt.ylim(0, 100)
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '2_outlier_percentages.png'), dpi=300)
+        plt.close()
+
+        # PLOT 3: Location Context
+        plt.figure(figsize=(12, 6))
+        sns.stripplot(data=df, x='Length', y='Connectivity', hue='Location', 
+                      dodge=True, alpha=0.7, size=6, palette={'BULK': 'gray', 'EDGE': 'red'})
+        plt.axvline(outlier_threshold, color='red', linestyle='--')
+        plt.title(f'{target_bond} Bonds: Edge vs Bulk Artifacts')
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '3_location_context.png'), dpi=300)
+        plt.close()
+
+        print("[INFO] Plots saved successfully.")        
 
 class PDFWorkflowManager(PDFRefinement):
     """
