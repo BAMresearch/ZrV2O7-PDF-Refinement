@@ -52,31 +52,15 @@ The workflow is organized into several distinct stages:
 # It supports single or multiple datasets via the 'dataset_list'.
 
 project_config = {
-    'project_name': 'ZirconiumVanadate_RefinementTest10112025ModelContinous/',
+    'project_name': 'ZirconiumVanadate_RefinementTest05112025ModelCtd_Restart318C/',
     'xrd_directory': 'data/',
     'cif_directory': 'CIFs/',
     'fit_directory': 'fits/',
     
     # Use 'dataset_list' for one or more files.
     'dataset_list': [
-        'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
-        'PDF_ZrV2O7_061_60C_avg_66_85_00000.dat',
-        'PDF_ZrV2O7_061_70C_avg_106_125_00000.dat',
-        'PDF_ZrV2O7_061_75C_avg_126_145_00000.dat',
-        'PDF_ZrV2O7_061_80C_avg_146_165_00000.dat',
-        'PDF_ZrV2O7_061_85C_avg_166_185_00000.dat',
-        'PDF_ZrV2O7_061_90C_avg_186_205_00000.dat',
-        'PDF_ZrV2O7_061_95C_avg_206_225_00000.dat',
-        'PDF_ZrV2O7_061_100C_avg_226_245_00000.dat',
-        'PDF_ZrV2O7_061_105C_avg_246_265_00000.dat',
-        'PDF_ZrV2O7_061_111C_avg_266_285_00000.dat',
-        'PDF_ZrV2O7_061_117C_avg_286_305_00000.dat',
-        'PDF_ZrV2O7_061_122C_avg_306_325_00000.dat',
-        'PDF_ZrV2O7_061_154C_avg_326_345_00000.dat',
-        'PDF_ZrV2O7_061_209C_avg_346_365_00000.dat',
-        'PDF_ZrV2O7_061_264C_avg_366_385_00000.dat',
-        'PDF_ZrV2O7_061_318C_avg_386_405_00000.dat',
-        'PDF_ZrV2O7_061_372C_avg_426_445_00000.dat',
+    	'PDF_ZrV2O7_061_318C_avg_386_405_00000.dat',
+    	'PDF_ZrV2O7_061_372C_avg_426_445_00000.dat',
         'PDF_ZrV2O7_061_427C_avg_446_465_00000.dat',
         'PDF_ZrV2O7_061_481C_avg_466_485_00000.dat',
         'PDF_ZrV2O7_061_536C_avg_486_505_00000.dat',
@@ -340,17 +324,31 @@ if __name__ == '__main__':
     print("\nScript execution finished.")
 
     # =============================================================================
-    # 8. SIMULATION WORKFLOW (OPTIONAL)
+    # 9. STRUCTURAL FORENSICS (OPTIONAL)
     # =============================================================================
-    # This section can be un-commented to execute a final validation simulation
-    # using an optimized structural model.
-
-    # workflow_orchestrator.simulate_pdf_workflow(
-    #     main_config=config,
-    #     sim_config=simulation_data
+    # Analyze a specific CIF file (e.g., a checkpoint or final fit) to understand 
+    # bond length outliers.
+    
+    # Example file path (adjust as needed)
+    # target_cif = "fits/ZirconiumVanadate_RefinementTest05112025ModelCtd/PDF_ZrV2O7_061_105C_avg_246_265_00000/Phase0_2.cif"
+    
+    
+    # # 1. Generate Text Report (Method you added earlier)
+    # workflow_orchestrator.run_structural_forensics(
+    #     cif_path=target_cif,
+    #     target_bond='V-O', 
+    #     outlier_threshold=1.8
     # )
 
-    print("\nScript execution finished.")
+    # # 2. Generate Visualizations (New Method)
+    # workflow_orchestrator.visualize_structural_forensics(
+    #     cif_path=target_cif,
+    #     target_bond='V-O',
+    #     outlier_threshold=1.8,
+    #     output_dir="forensics_results/Dataset_105C" # Plots will be saved here
+    # )
+
+    # print("\nScript execution finished.")
     # =============================================================================
     #                               END OF SCRIPT
     # =============================================================================
