@@ -5,8 +5,8 @@
 
 @author:    Tomasz Stawski
 @contact:   tomasz.stawski@gmail.com | tomasz.stawski@bam.de
-@version:   1.0
-@date:      2025-09-09
+@version:   1.1
+@date:      2025-12-05
 
 DESCRIPTION:
 This script serves as the main execution environment for performing automated,
