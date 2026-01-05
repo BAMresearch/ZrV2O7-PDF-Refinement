@@ -1800,6 +1800,9 @@ class PDFRefinement:
             print('Adding isotropic displacement parameters as unified values per element.')
             phase_generator = getattr(self.cpdf, phase)
             
+            # === Ensure isotropy ===
+            getattr(self.cpdf, phase).stru.anisotropy = False
+            
             # Unconstrain all Uiso parameters initially constrained by symmetry.
             for atom in phase_generator.phase.getScatterers():
                 if atom.Uiso.constrained:
@@ -1982,6 +1985,8 @@ class PDFRefinement:
                     except Exception:
                         print('Ignoring: parameter already exists')
                         pass # Ignore if parameter already exists
+                    
+                        
             except Exception as e:
                 print(f"Error applying space group to phase {phase}: {e}")
         if enforce_other_lattice:
