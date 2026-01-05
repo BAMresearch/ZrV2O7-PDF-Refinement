@@ -52,15 +52,80 @@ The workflow is organized into several distinct stages:
 # It supports single or multiple datasets via the 'dataset_list'.
 
 project_config = {
-    'project_name': 'ZirconiumVanadate_RefinementTest05112025ModelCtd_Restart318C/',
+    'project_name': 'ZirconiumVanadate_RefinementTest23122025Restart699CPhaseTransition/',
     'xrd_directory': 'data/',
     'cif_directory': 'CIFs/',
     'fit_directory': 'fits/',
     
     # Use 'dataset_list' for one or more files.
+    
+    # 'dataset_list': [
+    # 'PDF_ZrV2O7_061_25C_avg_46_65_00000.dat',
+    # 'PDF_ZrV2O7_061_60C_avg_66_85_00000.dat',
+    # 'PDF_ZrV2O7_061_70C_avg_106_125_00000.dat',
+    # 'PDF_ZrV2O7_061_75C_avg_126_145_00000.dat',
+    # 'PDF_ZrV2O7_061_80C_avg_146_165_00000.dat',
+    # 'PDF_ZrV2O7_061_85C_avg_166_185_00000.dat',
+    # 'PDF_ZrV2O7_061_90C_avg_186_205_00000.dat',
+    # 'PDF_ZrV2O7_061_95C_avg_206_225_00000.dat',
+    # 'PDF_ZrV2O7_061_100C_avg_226_245_00000.dat',
+    # 'PDF_ZrV2O7_061_105C_avg_246_265_00000.dat',
+    # 'PDF_ZrV2O7_061_111C_avg_266_285_00000.dat',
+    # 'PDF_ZrV2O7_061_117C_avg_286_305_00000.dat',
+    # 'PDF_ZrV2O7_061_122C_avg_306_325_00000.dat',
+    # 'PDF_ZrV2O7_061_154C_avg_326_345_00000.dat',
+    # 'PDF_ZrV2O7_061_209C_avg_346_365_00000.dat',
+    # 'PDF_ZrV2O7_061_264C_avg_366_385_00000.dat',
+    # 'PDF_ZrV2O7_061_318C_avg_386_405_00000.dat',
+    # 'PDF_ZrV2O7_061_372C_avg_426_445_00000.dat',
+    # 'PDF_ZrV2O7_061_427C_avg_446_465_00000.dat',
+    # 'PDF_ZrV2O7_061_481C_avg_466_485_00000.dat',
+    # 'PDF_ZrV2O7_061_536C_avg_486_505_00000.dat',
+    # 'PDF_ZrV2O7_061_590C_avg_506_525_00000.dat',
+    # 'PDF_ZrV2O7_061_644C_avg_526_545_00000.dat',
+    # 'PDF_ZrV2O7_061_650C_avg_546_565_00000.dat',
+    # 'PDF_ZrV2O7_061_655C_avg_566_585_00000.dat',
+    # 'PDF_ZrV2O7_061_661C_avg_586_605_00000.dat',
+    # 'PDF_ZrV2O7_061_666C_avg_606_625_00000.dat',
+    # 'PDF_ZrV2O7_061_672C_avg_626_645_00000.dat',
+    # 'PDF_ZrV2O7_061_677C_avg_646_665_00000.dat',
+    # 'PDF_ZrV2O7_061_688C_avg_666_685_00000.dat',
+    # 'PDF_ZrV2O7_061_699C_avg_686_705_00000.dat',
+    # 'PDF_ZrV2O7_061_209C_avg_346_745_00000.dat',
+    # 'PDF_ZrV2O7_061_209C_avg_726_745_00000.dat'
+    # ],
+    
+    # 'dataset_list': [
+
+    #     'PDF_ZrV2O7_061_209C_avg_346_365_00000.dat',
+    #     'PDF_ZrV2O7_061_264C_avg_366_385_00000.dat',
+    #     'PDF_ZrV2O7_061_318C_avg_386_405_00000.dat',
+    #     'PDF_ZrV2O7_061_372C_avg_426_445_00000.dat',
+    #     'PDF_ZrV2O7_061_427C_avg_446_465_00000.dat',
+    #     'PDF_ZrV2O7_061_481C_avg_466_485_00000.dat',
+    #     'PDF_ZrV2O7_061_536C_avg_486_505_00000.dat',
+    #     'PDF_ZrV2O7_061_590C_avg_506_525_00000.dat',
+    #     'PDF_ZrV2O7_061_644C_avg_526_545_00000.dat',
+    #     'PDF_ZrV2O7_061_650C_avg_546_565_00000.dat',
+    #     'PDF_ZrV2O7_061_655C_avg_566_585_00000.dat',
+    #     'PDF_ZrV2O7_061_661C_avg_586_605_00000.dat',
+    #     'PDF_ZrV2O7_061_666C_avg_606_625_00000.dat',
+    #     'PDF_ZrV2O7_061_672C_avg_626_645_00000.dat',
+    #     'PDF_ZrV2O7_061_677C_avg_646_665_00000.dat',
+    #     'PDF_ZrV2O7_061_688C_avg_666_685_00000.dat',
+    #     'PDF_ZrV2O7_061_699C_avg_686_705_00000.dat',
+    #     'PDF_ZrV2O7_061_209C_avg_346_745_00000.dat',
+    #     'PDF_ZrV2O7_061_209C_avg_726_745_00000.dat'
+
+    # ],
+
+    
+    # # Use 'dataset_list' for one or more files.
     'dataset_list': [
-    	'PDF_ZrV2O7_061_318C_avg_386_405_00000.dat',
-    	'PDF_ZrV2O7_061_372C_avg_426_445_00000.dat',
+        'PDF_ZrV2O7_061_699C_avg_686_705_00000.dat',
+        'PDF_ZrV2O7_061_264C_avg_366_385_00000.dat',
+        'PDF_ZrV2O7_061_318C_avg_386_405_00000.dat',
+        'PDF_ZrV2O7_061_372C_avg_426_445_00000.dat',
         'PDF_ZrV2O7_061_427C_avg_446_465_00000.dat',
         'PDF_ZrV2O7_061_481C_avg_466_485_00000.dat',
         'PDF_ZrV2O7_061_536C_avg_486_505_00000.dat',
@@ -72,16 +137,9 @@ project_config = {
         'PDF_ZrV2O7_061_666C_avg_606_625_00000.dat',
         'PDF_ZrV2O7_061_672C_avg_626_645_00000.dat',
         'PDF_ZrV2O7_061_677C_avg_646_665_00000.dat',
-        'PDF_ZrV2O7_061_688C_avg_666_685_00000.dat',
-        'PDF_ZrV2O7_061_699C_avg_686_705_00000.dat',
-        'PDF_ZrV2O7_061_209C_avg_346_745_00000.dat',
-        'PDF_ZrV2O7_061_209C_avg_726_745_00000.dat'
-
+        'PDF_ZrV2O7_061_688C_avg_666_685_00000.dat'
     ],
     
-    # 'dataset_list': [
-    #     'PDF_ZrV2O7_061_677C_avg_646_665_00000.dat',
-    # ],
     
     'ciffile': {'98-005-9396_ZrV2O7.cif': ['Pa-3', True, (1, 1, 1)]},
     #'ciffile': {'98-008-4883_parent.cif': ['Pa-3', True, (3, 3, 3)]},
@@ -101,7 +159,7 @@ project_config = {
     
     'anisotropic': False,
     'sgoffset': [0.0, 0.0, 0.0],
-    'myrange': (0.0, 80),
+    'myrange': (0.05, 80),
     'myrstep': 0.05,
     'convergence_options': {'disp': True 
     #                        , 'ftol': 1e-4 #Stops when the change in Rw is less than 'ftol'
@@ -248,7 +306,23 @@ refinement_plan = {
         'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
         'fitting_range': [1.5, 27],
         'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
-    }
+    },
+    # 3: {
+    #     'description': 'Long range (Pa-3)',
+    #     'space_group': ['Pa-3'],
+    #     'enforce_other_lattice': True,  # Explicitly keep the lattice cubic
+    #     'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
+    #     'fitting_range': [1.5, 60],
+    #     'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    # },
+    # 4: {
+    #     'description': 'Long range (P1)',
+    #     'space_group': ['P1'],
+    #     'enforce_other_lattice': True,  # Explicitly keep the lattice cubic
+    #     'constraints': {'constrain_bonds': (True, 0.001), 'constrain_angles': (True, 0.001), 'constrain_dihedrals': (False, 0.001), 'adaptive': False},
+    #     'fitting_range': [1.5, 60],
+    #     'fitting_order': ['lat', 'scale', 'psize', 'delta2', 'adp', 'xyz', 'all']
+    # }
 }
 
 
