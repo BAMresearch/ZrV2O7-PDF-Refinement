@@ -1786,16 +1786,49 @@ class PDFRefinement:
             phase (str): The name of the current phase (e.g., 'Phase0').
             sgpar: The space group parameter object from `constrainAsSpaceGroup`.
         """
+
         if self.config.anisotropic:
             print('Adding anisotropic displacement parameters.')
             getattr(self.cpdf, phase).stru.anisotropy = True
+            
             for par in sgpar.adppars:
                 atom = par.par.obj
-                u0 = self.config.detailed_composition.get(atom.element, {}).get('Uiso', 0.01)
+                p_name = par.name  # e.g., 'U11_0', 'U12_1'
+                
+                # 1. Identify if this is a diagonal element (U11, U22, U33)
+                is_diagonal = any(diag in p_name for diag in ['U11', 'U22', 'U33'])
+                
+                # 2. Determine Initial Value
+                # Check if the CIF already has a non-zero value
+                current_val = par.par.value
+                
+                # If CIF value is effectively zero, apply our defaults
+                if abs(current_val) < 1e-9:
+                    if is_diagonal:
+                        # Default diagonals to the Uiso guess from config
+                        start_val = self.config.detailed_composition.get(atom.element, {}).get('Uiso', 0.01)
+                    else:
+                        # Default off-diagonals to 0
+                        start_val = 0.0
+                else:
+                    # Keep the value from the CIF
+                    start_val = current_val
+
                 name = f"{par.name}_{atom.label}_{phase}"
-                tags = ['adp', f"adp_{atom.label}", f"adp_{atom.element}_{phase}", f"adp_{phase}", f"adp_{atom.element}", str(phase)]
-                self.fit.addVar(par, value=u0, name=name, tags=tags)
-                self.fit.restrain(par, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
+                tags = ['adp', f"adp_{atom.label}", f"adp_{atom.element}_{phase}", f"adp_{phase}", str(phase)]
+                
+                # Add variable with the determined start_val
+                self.fit.addVar(par, value=start_val, name=name, tags=tags)
+                
+                # 3. Apply Physically Correct Restraints
+                if is_diagonal:
+                    # Diagonal elements must be positive
+                    self.fit.restrain(par, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
+                else:
+                    # Off-diagonal elements can be negative (correlation)
+                    # We set a symmetric range (e.g., -0.1 to 0.1)
+                    self.fit.restrain(par, lb=-0.1, ub=0.1, scaled=True, sig=0.0005)
+
         else:
             print('Adding isotropic displacement parameters as unified values per element.')
             phase_generator = getattr(self.cpdf, phase)
