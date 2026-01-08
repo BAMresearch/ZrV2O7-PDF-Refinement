@@ -115,9 +115,14 @@ project_config = {
     'refine_qdamp': False,
     'refine_qbroad': False,
     
-    'anisotropic': False,
+    # === CHANGED: ADP Handling Mode ===
+    # Options: 
+    #   'isotropic'   : Spherical atoms (anisotropy=False).
+    #   'anisotropic' : Full tensor refinement (U11, U22, ...).
+    #   'fixed_shape' : Scaled Anisotropic. Preserves shape from CIF, refines size (Uiso).
+    'adp_mode': 'fixed_shape',
     'sgoffset': [0.0, 0.0, 0.0],
-    'myrange': (0.05, 80),
+    'myrange': (0.05, 27),
     'myrstep': 0.05,
     'convergence_options': {'disp': True 
     #                        , 'ftol': 1e-4 #Stops when the change in Rw is less than 'ftol'
@@ -161,19 +166,19 @@ project_config = {
 # This dictionary contains parameters exclusively for the final simulation and
 # validation workflow.
 simulation_data = {
-    'cif_directory': 'fits/ZirconiumVanadate_RefinementTest05112025ModelCtd/PDF_ZrV2O7_061_95C_avg_206_225_00000',
-    'ciffile': {'Phase0_2.cif': ['P1', True, (1, 1, 1)]},
-    'powder_data_file': 'PDF_ZrV2O7_061_95C_avg_206_225_00000.dat',
-    'output_path': 'resultsSimulations/95C_Phase0_test',
+    'cif_directory': '/home/tomek/Desktop/PDF_ZrV2O7_061_122C_avg_306_325_00000/',
+    'ciffile': {'Phase0_1.cif': ['P1', True, (1, 1, 1)]},
+    'powder_data_file': 'PDF_ZrV2O7_061_122C_avg_306_325_00000.dat',
+    'output_path': 'resultsSimulations/122C_Phase0_test',
     'optimized_params': {
-        'Phase0': {'s': 5.09845238e-01, 'psize': 2.13442030e+2, 'delta2': 2.55505808e+00}
+        'Phase0': {'s': 4.92890476e-01, 'psize': 3.96007725e+02, 'delta2': 2.56211060e+00}
     },
     'default_Uiso': {
-        'Zr': 6.27789738e-05,
-        'V': 1.38994726e-03,
-        'O': 7.94470490e-03
+        'Zr': 6.95944235e-06,
+        'V': 1.13130649e-03,
+        'O': 6.87032735e-03
     },
-    'fitting_range': [0.05, 80],
+    'fitting_range': [0.05, 27],
     'csv_filename': 'sim_vs_obs.csv'
 }
 
@@ -357,7 +362,7 @@ if __name__ == '__main__':
     # bond length outliers.
     
     # Example file path (adjust as needed)
-    target_cif = "fits/ZirconiumVanadate_RefinementTest05112025ModelCtd/PDF_ZrV2O7_061_105C_avg_246_265_00000/Phase0_2.cif"
+    target_cif = "/home/tomek/Desktop/PDF_ZrV2O7_061_122C_avg_306_325_00000/Phase0_2.cif"
     
     
     # 1. Generate Text Report (Method you added earlier)
