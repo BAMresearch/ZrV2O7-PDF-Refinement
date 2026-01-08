@@ -110,7 +110,7 @@ class RefinementConfig:
             'project_name', 'xrd_directory', 'cif_directory', 'fit_directory',
             'dataset_list',
             'ciffile', 'composition', 'detailed_composition',
-            'qdamp', 'qbroad', 'qmax', 'anisotropic',
+            'qdamp', 'qbroad', 'qmax', 'adp_mode',
             'sgoffset', 'myrange', 'myrstep', 'convergence_options',
             'pdfgetx_config', 'log_file', 'refinement_plan', 
             'refine_qdamp', 'refine_qbroad',
@@ -953,6 +953,12 @@ class ResultsManager:
         g_obs  = cpdf.profile.y
         g_calc = cpdf.evaluate()
         g_diff = g_obs - g_calc
+        
+        # === Calculate Rw ===
+        numerator = np.sum(g_diff**2)
+        denominator = np.sum(g_obs**2)
+        rw = np.sqrt(numerator / denominator) if denominator != 0 else 0.0
+        # ===========================
 
         axs[0].plot(r, g_obs,  'o', label='G_obs',
                     markeredgecolor='blue', markerfacecolor='none')
@@ -961,7 +967,9 @@ class ResultsManager:
         axs[0].axhline(y=-4, linestyle=':', color='black')
         axs[0].set_xlabel('r (Å)',           fontsize=label_font_size)
         axs[0].set_ylabel('G (Å$^{-2}$)',    fontsize=label_font_size)
-        axs[0].set_title('PDF Data and Fit', fontsize=label_font_size)
+        # === UPDATE: Include Rw in the title ===
+        axs[0].set_title(f'PDF Data and Fit (Rw = {rw:.3f})', fontsize=label_font_size)
+        #axs[0].set_title('PDF Data and Fit', fontsize=label_font_size)
         axs[0].legend(fontsize=font_size)
 
         # ---- Panel 2: Bond-length histograms ----
@@ -1779,69 +1787,61 @@ class PDFRefinement:
         """
         Adds atomic displacement parameters (ADPs) for a phase to the recipe.
         
-        This sub-helper method handles both anisotropic (Uij) and isotropic (Uiso)
-        scenarios based on the `self.config.anisotropic` flag.
-        
-        Args:
-            phase (str): The name of the current phase (e.g., 'Phase0').
-            sgpar: The space group parameter object from `constrainAsSpaceGroup`.
+        Supports three modes via self.config.adp_mode:
+        1. 'anisotropic': Full tensor refinement (U11, U22...).
+        2. 'isotropic': Spherical refinement (Uiso).
+        3. 'fixed_shape': Preserves anisotropic shape from CIF, refines Uiso as scaler.
         """
+        mode = self.config.adp_mode
+        phase_gen = getattr(self.cpdf, phase)
 
-        if self.config.anisotropic:
-            print('Adding anisotropic displacement parameters.')
-            getattr(self.cpdf, phase).stru.anisotropy = True
+        if mode == 'anisotropic':
+            print(f'[{phase}] Adding Full Anisotropic displacement parameters.')
+            phase_gen.stru.anisotropy = True
             
+            # Use smart initialization for tensor elements (respects CIF values)
             for par in sgpar.adppars:
                 atom = par.par.obj
-                p_name = par.name  # e.g., 'U11_0', 'U12_1'
-                
-                # 1. Identify if this is a diagonal element (U11, U22, U33)
+                p_name = par.name
                 is_diagonal = any(diag in p_name for diag in ['U11', 'U22', 'U33'])
                 
-                # 2. Determine Initial Value
-                # Check if the CIF already has a non-zero value
+                # Check if CIF has data (non-zero)
                 current_val = par.par.value
-                
-                # If CIF value is effectively zero, apply our defaults
                 if abs(current_val) < 1e-9:
-                    if is_diagonal:
-                        # Default diagonals to the Uiso guess from config
-                        start_val = self.config.detailed_composition.get(atom.element, {}).get('Uiso', 0.01)
-                    else:
-                        # Default off-diagonals to 0
-                        start_val = 0.0
+                    # Default: Uiso for diagonals, 0 for off-diagonals
+                    start_val = self.config.detailed_composition.get(atom.element, {}).get('Uiso', 0.01) if is_diagonal else 0.0
                 else:
-                    # Keep the value from the CIF
                     start_val = current_val
 
                 name = f"{par.name}_{atom.label}_{phase}"
-                tags = ['adp', f"adp_{atom.label}", f"adp_{atom.element}_{phase}", f"adp_{phase}", str(phase)]
-                
-                # Add variable with the determined start_val
+                tags = ['adp', f"adp_{atom.label}", f"adp_{atom.element}", str(phase)]
                 self.fit.addVar(par, value=start_val, name=name, tags=tags)
                 
-                # 3. Apply Physically Correct Restraints
+                # Physical restraints: Diagonals > 0, Off-diagonals symmetric range
                 if is_diagonal:
-                    # Diagonal elements must be positive
                     self.fit.restrain(par, lb=0.0, ub=0.1, scaled=True, sig=0.0005)
                 else:
-                    # Off-diagonal elements can be negative (correlation)
-                    # We set a symmetric range (e.g., -0.1 to 0.1)
                     self.fit.restrain(par, lb=-0.1, ub=0.1, scaled=True, sig=0.0005)
 
-        else:
-            print('Adding isotropic displacement parameters as unified values per element.')
-            phase_generator = getattr(self.cpdf, phase)
+        elif mode in ['isotropic', 'fixed_shape']:
+            # Common Logic: We create and refine Uiso variables in both cases.
             
-            # === Ensure isotropy ===
-            getattr(self.cpdf, phase).stru.anisotropy = False
-            
-            # Unconstrain all Uiso parameters initially constrained by symmetry.
-            for atom in phase_generator.phase.getScatterers():
+            if mode == 'fixed_shape':
+                print(f'[{phase}] Adding Fixed-Shape ADPs (Anisotropic Shape, Scaled Size).')
+                # Critical: Keep anisotropy=True so DiffPy uses the tensor, 
+                # but refine Uiso which acts as a scaling factor for that tensor.
+                phase_gen.stru.anisotropy = True
+            else:
+                print(f'[{phase}] Adding Isotropic ADPs (Spherical).')
+                # Critical: Force anisotropy=False so DiffPy ignores the tensor.
+                phase_gen.stru.anisotropy = False
+
+            # Unconstrain existing Uiso parameters
+            for atom in phase_gen.phase.getScatterers():
                 if atom.Uiso.constrained:
                     self.fit.unconstrain(atom.Uiso)
             
-            # Create a single, shared refinable variable for each element type.
+            # Create unified Uiso variables per element
             element_vars = {}
             for el, info in self.config.detailed_composition.items():
                 u0 = info['Uiso']
@@ -1849,11 +1849,13 @@ class PDFRefinement:
                 element_vars[el] = self.fit.newVar(var_name, value=u0, tags=['adp', el, str(phase)])
                 self.fit.restrain(element_vars[el], lb=0.0, ub=0.1, scaled=True, sig=0.0005)
             
-            # Constrain each atom's Uiso to its corresponding element-level variable.
-            for atom in phase_generator.phase.getScatterers():
+            # Constrain atoms to the unified variables
+            for atom in phase_gen.phase.getScatterers():
                 if atom.element in element_vars:
                     self.fit.constrain(atom.Uiso, element_vars[atom.element])
-
+        
+        else:
+            raise ValueError(f"Unknown adp_mode: '{mode}'. Use 'isotropic', 'anisotropic', or 'fixed_shape'.")
     def _add_xyz_parameters(self, phase, sgpar):
         """
         Adds atomic coordinate parameters (XYZ) for a phase to the recipe.
