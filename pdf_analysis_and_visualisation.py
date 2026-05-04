@@ -30,6 +30,7 @@ from itertools import combinations
 import concurrent.futures
 from pymatgen.util.coord import get_angle
 from pymatgen.core import Structure
+# https://pymatgen.org/
 
 # Core infrastructure and specific configuration imports
 from pdf_refinement_core import StructureAnalyzer, RefinementConfig
