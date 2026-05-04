@@ -45,6 +45,7 @@ This section outlines software installation using Anaconda or Miniconda, with re
 - tqdm
 - psutil
 - dill
+- pymatgen (https://pymatgen.org/)
 
 > **Note:**  
 > Creating a dedicated Python environment for this project is strongly recommended to prevent dependency conflicts.
