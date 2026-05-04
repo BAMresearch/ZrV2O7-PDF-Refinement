@@ -1,0 +1,33 @@
+Results written: Tue Apr 21 17:13:12 2026
+produced by tomek
+
+Some quantities invalid due to missing profile uncertainty
+Overall (Chi2 and Reduced Chi2 invalid)
+------------------------------------------------------------------------------
+Residual       0.01261395
+Contributions  0.01261395
+Restraints     0.00000000
+Chi2           99.64031013
+Reduced Chi2   0.01011577
+Rw             0.11231184
+
+Variables (Uncertainties invalid)
+------------------------------------------------------------------------------
+U11_1_B_Phase0     7.40245183e+00 +/- 7.71707839e+03
+U22_1_B_Phase0     1.16703006e+01 +/- 7.97803517e+03
+Uiso_0_LA1_Phase0  3.93655331e-03 +/- 1.16024707e-02
+a_Phase0           4.15697663e+00 +/- 3.96720908e-02
+delta2_Phase0      4.13090887e-03 +/- 1.83788620e+02
+qdamp_Phase0       2.69971181e-02 +/- 3.23496115e-02
+s_Phase0           1.46694525e-01 +/- 2.49410892e-01
+x_B0_Phase0        2.01309237e-01 +/- 1.19799637e-01
+
+Fixed Variables
+------------------------------------------------------------------------------
+qbroad_Phase0  2.40000000e-06
+
+Variable Correlations greater than 25% (Correlations invalid)
+------------------------------------------------------------------------------
+corr(U22_1_B_Phase0, U11_1_B_Phase0)   -0.7234
+corr(qdamp_Phase0, s_Phase0)           0.5492
+corr(s_Phase0, Uiso_0_LA1_Phase0)      0.5228

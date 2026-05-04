@@ -1,0 +1,29 @@
+2026-02-20 06:58:58,823 - INFO - ======= STARTING REFINEMENT WORKFLOW =======
+2026-02-20 06:58:58,823 - INFO - 
+===== PROCESSING DATASET 1/2: PDF_ZrV2O7_061_264C_avg_366_385_00000.dat =====
+2026-02-20 06:58:58,913 - INFO - Found checkpoint for PDF_ZrV2O7_061_264C_avg_366_385_00000.dat. Loading...
+2026-02-20 06:58:58,916 - INFO -   - Checkpoint loaded successfully. Last completed step was 2.
+2026-02-20 06:58:58,916 - INFO - Resuming from checkpoint.
+2026-02-20 06:59:05,309 - INFO - Applying loaded parameters to the model...
+2026-02-20 06:59:15,549 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_264C_avg_366_385_00000.dat =====
+2026-02-20 06:59:15,550 - INFO - 
+===== PROCESSING DATASET 2/2: PDF_ZrV2O7_061_318C_avg_386_405_00000.dat =====
+2026-02-20 06:59:15,577 - INFO - Initializing from previous dataset's results.
+2026-02-20 06:59:29,537 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-02-20 13:12:16,582 - INFO - Saving checkpoint for PDF_ZrV2O7_061_318C_avg_386_405_00000.dat after step 0...
+2026-02-20 13:12:16,604 - INFO -   - Structure saved.
+2026-02-20 13:12:16,604 - INFO -   - Parameters and progress saved to fits/ZirconiumVanadate_Refinement24012025_308CRedo/checkpoints/PDF_ZrV2O7_061_318C_avg_386_405_00000_params.json
+2026-02-20 13:12:16,604 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-02-20 18:55:19,099 - INFO - Saving checkpoint for PDF_ZrV2O7_061_318C_avg_386_405_00000.dat after step 1...
+2026-02-20 18:55:19,125 - INFO -   - Structure saved.
+2026-02-20 18:55:19,126 - INFO -   - Parameters and progress saved to fits/ZirconiumVanadate_Refinement24012025_308CRedo/checkpoints/PDF_ZrV2O7_061_318C_avg_386_405_00000_params.json
+2026-02-20 18:55:19,126 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-02-21 05:11:25,612 - INFO - Saving checkpoint for PDF_ZrV2O7_061_318C_avg_386_405_00000.dat after step 2...
+2026-02-21 05:11:25,654 - INFO -   - Structure saved.
+2026-02-21 05:11:25,655 - INFO -   - Parameters and progress saved to fits/ZirconiumVanadate_Refinement24012025_308CRedo/checkpoints/PDF_ZrV2O7_061_318C_avg_386_405_00000_params.json
+2026-02-21 05:11:31,484 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_318C_avg_386_405_00000.dat =====
+2026-02-21 05:11:31,484 - INFO - 
+======= REFINEMENT WORKFLOW FINISHED =======

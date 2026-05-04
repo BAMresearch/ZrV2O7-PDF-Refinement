@@ -1,0 +1,596 @@
+2026-02-22 15:20:44,106 - INFO - ======= STARTING REFINEMENT WORKFLOW =======
+2026-02-22 15:20:44,109 - INFO - 
+===== PROCESSING DATASET 1/31: PDF_ZrV2O7_061_25C_avg_46_65_00000.dat =====
+2026-02-22 15:20:44,161 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-02-22 15:24:31,364 - INFO - ======= STARTING REFINEMENT WORKFLOW =======
+2026-02-22 15:24:31,364 - INFO - 
+===== PROCESSING DATASET 1/31: PDF_ZrV2O7_061_25C_avg_46_65_00000.dat =====
+2026-02-22 15:24:31,416 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-02-22 15:24:46,692 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-02-22 20:23:51,340 - INFO - Saving checkpoint for PDF_ZrV2O7_061_25C_avg_46_65_00000.dat after step 0...
+2026-02-22 20:23:51,362 - INFO -   - Structure saved.
+2026-02-22 20:23:51,362 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_25C_avg_46_65_00000_params.json
+2026-02-22 20:23:51,362 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-02-23 02:01:41,170 - INFO - Saving checkpoint for PDF_ZrV2O7_061_25C_avg_46_65_00000.dat after step 1...
+2026-02-23 02:01:41,196 - INFO -   - Structure saved.
+2026-02-23 02:01:41,196 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_25C_avg_46_65_00000_params.json
+2026-02-23 02:01:41,196 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-02-23 11:55:42,467 - INFO - Saving checkpoint for PDF_ZrV2O7_061_25C_avg_46_65_00000.dat after step 2...
+2026-02-23 11:55:42,509 - INFO -   - Structure saved.
+2026-02-23 11:55:42,510 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_25C_avg_46_65_00000_params.json
+2026-02-23 11:55:47,829 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_25C_avg_46_65_00000.dat =====
+2026-02-23 11:55:47,830 - INFO - 
+===== PROCESSING DATASET 2/31: PDF_ZrV2O7_061_60C_avg_66_85_00000.dat =====
+2026-02-23 11:55:47,863 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-02-23 11:56:00,441 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-02-23 16:53:13,434 - INFO - Saving checkpoint for PDF_ZrV2O7_061_60C_avg_66_85_00000.dat after step 0...
+2026-02-23 16:53:13,456 - INFO -   - Structure saved.
+2026-02-23 16:53:13,456 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_60C_avg_66_85_00000_params.json
+2026-02-23 16:53:13,457 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-02-23 23:02:10,433 - INFO - Saving checkpoint for PDF_ZrV2O7_061_60C_avg_66_85_00000.dat after step 1...
+2026-02-23 23:02:10,460 - INFO -   - Structure saved.
+2026-02-23 23:02:10,460 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_60C_avg_66_85_00000_params.json
+2026-02-23 23:02:10,460 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-02-24 13:39:56,892 - INFO - Saving checkpoint for PDF_ZrV2O7_061_60C_avg_66_85_00000.dat after step 2...
+2026-02-24 13:39:56,936 - INFO -   - Structure saved.
+2026-02-24 13:39:56,936 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_60C_avg_66_85_00000_params.json
+2026-02-24 13:40:02,432 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_60C_avg_66_85_00000.dat =====
+2026-02-24 13:40:02,432 - INFO - 
+===== PROCESSING DATASET 3/31: PDF_ZrV2O7_061_70C_avg_106_125_00000.dat =====
+2026-02-24 13:40:02,467 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-02-24 13:40:14,782 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-02-24 19:03:32,821 - INFO - Saving checkpoint for PDF_ZrV2O7_061_70C_avg_106_125_00000.dat after step 0...
+2026-02-24 19:03:32,844 - INFO -   - Structure saved.
+2026-02-24 19:03:32,844 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_70C_avg_106_125_00000_params.json
+2026-02-24 19:03:32,844 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-02-25 00:58:45,910 - INFO - Saving checkpoint for PDF_ZrV2O7_061_70C_avg_106_125_00000.dat after step 1...
+2026-02-25 00:58:45,937 - INFO -   - Structure saved.
+2026-02-25 00:58:45,937 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_70C_avg_106_125_00000_params.json
+2026-02-25 00:58:45,937 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-02-25 10:20:51,528 - INFO - Saving checkpoint for PDF_ZrV2O7_061_70C_avg_106_125_00000.dat after step 2...
+2026-02-25 10:20:51,571 - INFO -   - Structure saved.
+2026-02-25 10:20:51,572 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_70C_avg_106_125_00000_params.json
+2026-02-25 10:20:57,333 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_70C_avg_106_125_00000.dat =====
+2026-02-25 10:20:57,333 - INFO - 
+===== PROCESSING DATASET 4/31: PDF_ZrV2O7_061_75C_avg_126_145_00000.dat =====
+2026-02-25 10:20:57,366 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-02-25 10:21:09,580 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-02-25 15:55:02,451 - INFO - Saving checkpoint for PDF_ZrV2O7_061_75C_avg_126_145_00000.dat after step 0...
+2026-02-25 15:55:02,475 - INFO -   - Structure saved.
+2026-02-25 15:55:02,475 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_75C_avg_126_145_00000_params.json
+2026-02-25 15:55:02,475 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-02-25 21:13:27,627 - INFO - Saving checkpoint for PDF_ZrV2O7_061_75C_avg_126_145_00000.dat after step 1...
+2026-02-25 21:13:27,654 - INFO -   - Structure saved.
+2026-02-25 21:13:27,654 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_75C_avg_126_145_00000_params.json
+2026-02-25 21:13:27,654 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-02-26 07:38:41,716 - INFO - Saving checkpoint for PDF_ZrV2O7_061_75C_avg_126_145_00000.dat after step 2...
+2026-02-26 07:38:41,762 - INFO -   - Structure saved.
+2026-02-26 07:38:41,762 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_75C_avg_126_145_00000_params.json
+2026-02-26 07:38:47,350 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_75C_avg_126_145_00000.dat =====
+2026-02-26 07:38:47,350 - INFO - 
+===== PROCESSING DATASET 5/31: PDF_ZrV2O7_061_80C_avg_146_165_00000.dat =====
+2026-02-26 07:38:47,383 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-02-26 07:38:59,748 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-02-26 12:44:12,386 - INFO - Saving checkpoint for PDF_ZrV2O7_061_80C_avg_146_165_00000.dat after step 0...
+2026-02-26 12:44:12,409 - INFO -   - Structure saved.
+2026-02-26 12:44:12,409 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_80C_avg_146_165_00000_params.json
+2026-02-26 12:44:12,409 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-02-26 18:15:41,763 - INFO - Saving checkpoint for PDF_ZrV2O7_061_80C_avg_146_165_00000.dat after step 1...
+2026-02-26 18:15:41,791 - INFO -   - Structure saved.
+2026-02-26 18:15:41,791 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_80C_avg_146_165_00000_params.json
+2026-02-26 18:15:41,791 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-02-27 03:01:35,501 - INFO - Saving checkpoint for PDF_ZrV2O7_061_80C_avg_146_165_00000.dat after step 2...
+2026-02-27 03:01:35,545 - INFO -   - Structure saved.
+2026-02-27 03:01:35,545 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_80C_avg_146_165_00000_params.json
+2026-02-27 03:01:41,280 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_80C_avg_146_165_00000.dat =====
+2026-02-27 03:01:41,281 - INFO - 
+===== PROCESSING DATASET 6/31: PDF_ZrV2O7_061_85C_avg_166_185_00000.dat =====
+2026-02-27 03:01:41,315 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-02-27 03:01:54,205 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-02-27 08:59:49,646 - INFO - Saving checkpoint for PDF_ZrV2O7_061_85C_avg_166_185_00000.dat after step 0...
+2026-02-27 08:59:49,669 - INFO -   - Structure saved.
+2026-02-27 08:59:49,669 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_85C_avg_166_185_00000_params.json
+2026-02-27 08:59:49,669 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-02-27 15:08:57,109 - INFO - Saving checkpoint for PDF_ZrV2O7_061_85C_avg_166_185_00000.dat after step 1...
+2026-02-27 15:08:57,137 - INFO -   - Structure saved.
+2026-02-27 15:08:57,137 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_85C_avg_166_185_00000_params.json
+2026-02-27 15:08:57,138 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-02-28 07:43:44,963 - INFO - Saving checkpoint for PDF_ZrV2O7_061_85C_avg_166_185_00000.dat after step 2...
+2026-02-28 07:43:45,008 - INFO -   - Structure saved.
+2026-02-28 07:43:45,008 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_85C_avg_166_185_00000_params.json
+2026-02-28 07:43:50,840 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_85C_avg_166_185_00000.dat =====
+2026-02-28 07:43:50,840 - INFO - 
+===== PROCESSING DATASET 7/31: PDF_ZrV2O7_061_90C_avg_186_205_00000.dat =====
+2026-02-28 07:43:50,873 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-02-28 07:44:03,759 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-02-28 12:38:52,695 - INFO - Saving checkpoint for PDF_ZrV2O7_061_90C_avg_186_205_00000.dat after step 0...
+2026-02-28 12:38:52,718 - INFO -   - Structure saved.
+2026-02-28 12:38:52,719 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_90C_avg_186_205_00000_params.json
+2026-02-28 12:38:52,719 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-02-28 19:16:57,409 - INFO - Saving checkpoint for PDF_ZrV2O7_061_90C_avg_186_205_00000.dat after step 1...
+2026-02-28 19:16:57,436 - INFO -   - Structure saved.
+2026-02-28 19:16:57,436 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_90C_avg_186_205_00000_params.json
+2026-02-28 19:16:57,436 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-01 04:48:53,012 - INFO - Saving checkpoint for PDF_ZrV2O7_061_90C_avg_186_205_00000.dat after step 2...
+2026-03-01 04:48:53,057 - INFO -   - Structure saved.
+2026-03-01 04:48:53,057 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_90C_avg_186_205_00000_params.json
+2026-03-01 04:48:58,663 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_90C_avg_186_205_00000.dat =====
+2026-03-01 04:48:58,663 - INFO - 
+===== PROCESSING DATASET 8/31: PDF_ZrV2O7_061_95C_avg_206_225_00000.dat =====
+2026-03-01 04:48:58,696 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-01 04:49:11,264 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-01 10:12:52,623 - INFO - Saving checkpoint for PDF_ZrV2O7_061_95C_avg_206_225_00000.dat after step 0...
+2026-03-01 10:12:52,646 - INFO -   - Structure saved.
+2026-03-01 10:12:52,646 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_95C_avg_206_225_00000_params.json
+2026-03-01 10:12:52,646 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-01 15:33:03,904 - INFO - Saving checkpoint for PDF_ZrV2O7_061_95C_avg_206_225_00000.dat after step 1...
+2026-03-01 15:33:03,931 - INFO -   - Structure saved.
+2026-03-01 15:33:03,931 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_95C_avg_206_225_00000_params.json
+2026-03-01 15:33:03,932 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-02 04:16:17,357 - INFO - Saving checkpoint for PDF_ZrV2O7_061_95C_avg_206_225_00000.dat after step 2...
+2026-03-02 04:16:17,401 - INFO -   - Structure saved.
+2026-03-02 04:16:17,401 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_95C_avg_206_225_00000_params.json
+2026-03-02 04:16:22,908 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_95C_avg_206_225_00000.dat =====
+2026-03-02 04:16:22,908 - INFO - 
+===== PROCESSING DATASET 9/31: PDF_ZrV2O7_061_100C_avg_226_245_00000.dat =====
+2026-03-02 04:16:22,931 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-02 04:16:35,858 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-02 07:37:05,198 - INFO - Saving checkpoint for PDF_ZrV2O7_061_100C_avg_226_245_00000.dat after step 0...
+2026-03-02 07:37:05,222 - INFO -   - Structure saved.
+2026-03-02 07:37:05,222 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_100C_avg_226_245_00000_params.json
+2026-03-02 07:37:05,222 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-02 12:43:27,808 - INFO - Saving checkpoint for PDF_ZrV2O7_061_100C_avg_226_245_00000.dat after step 1...
+2026-03-02 12:43:27,834 - INFO -   - Structure saved.
+2026-03-02 12:43:27,835 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_100C_avg_226_245_00000_params.json
+2026-03-02 12:43:27,835 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-03 01:06:30,406 - INFO - Saving checkpoint for PDF_ZrV2O7_061_100C_avg_226_245_00000.dat after step 2...
+2026-03-03 01:06:30,451 - INFO -   - Structure saved.
+2026-03-03 01:06:30,451 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_100C_avg_226_245_00000_params.json
+2026-03-03 01:06:36,131 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_100C_avg_226_245_00000.dat =====
+2026-03-03 01:06:36,131 - INFO - 
+===== PROCESSING DATASET 10/31: PDF_ZrV2O7_061_105C_avg_246_265_00000.dat =====
+2026-03-03 01:06:36,166 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-03 01:06:48,627 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-03 06:05:44,761 - INFO - Saving checkpoint for PDF_ZrV2O7_061_105C_avg_246_265_00000.dat after step 0...
+2026-03-03 06:05:44,784 - INFO -   - Structure saved.
+2026-03-03 06:05:44,784 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_105C_avg_246_265_00000_params.json
+2026-03-03 06:05:44,784 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-03 12:07:00,550 - INFO - Saving checkpoint for PDF_ZrV2O7_061_105C_avg_246_265_00000.dat after step 1...
+2026-03-03 12:07:00,576 - INFO -   - Structure saved.
+2026-03-03 12:07:00,576 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_105C_avg_246_265_00000_params.json
+2026-03-03 12:07:00,577 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-04 00:42:27,666 - INFO - Saving checkpoint for PDF_ZrV2O7_061_105C_avg_246_265_00000.dat after step 2...
+2026-03-04 00:42:27,711 - INFO -   - Structure saved.
+2026-03-04 00:42:27,711 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_105C_avg_246_265_00000_params.json
+2026-03-04 00:42:33,499 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_105C_avg_246_265_00000.dat =====
+2026-03-04 00:42:33,500 - INFO - 
+===== PROCESSING DATASET 11/31: PDF_ZrV2O7_061_111C_avg_266_285_00000.dat =====
+2026-03-04 00:42:33,533 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-04 00:42:45,969 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-04 06:06:01,600 - INFO - Saving checkpoint for PDF_ZrV2O7_061_111C_avg_266_285_00000.dat after step 0...
+2026-03-04 06:06:01,623 - INFO -   - Structure saved.
+2026-03-04 06:06:01,623 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_111C_avg_266_285_00000_params.json
+2026-03-04 06:06:01,623 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-04 11:34:36,142 - INFO - Saving checkpoint for PDF_ZrV2O7_061_111C_avg_266_285_00000.dat after step 1...
+2026-03-04 11:34:36,170 - INFO -   - Structure saved.
+2026-03-04 11:34:36,170 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_111C_avg_266_285_00000_params.json
+2026-03-04 11:34:36,170 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-05 04:19:24,110 - INFO - Saving checkpoint for PDF_ZrV2O7_061_111C_avg_266_285_00000.dat after step 2...
+2026-03-05 04:19:24,155 - INFO -   - Structure saved.
+2026-03-05 04:19:24,155 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_111C_avg_266_285_00000_params.json
+2026-03-05 04:19:29,953 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_111C_avg_266_285_00000.dat =====
+2026-03-05 04:19:29,954 - INFO - 
+===== PROCESSING DATASET 12/31: PDF_ZrV2O7_061_117C_avg_286_305_00000.dat =====
+2026-03-05 04:19:29,988 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-05 04:19:42,380 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-05 09:26:05,209 - INFO - Saving checkpoint for PDF_ZrV2O7_061_117C_avg_286_305_00000.dat after step 0...
+2026-03-05 09:26:05,232 - INFO -   - Structure saved.
+2026-03-05 09:26:05,233 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_117C_avg_286_305_00000_params.json
+2026-03-05 09:26:05,233 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-05 15:27:29,892 - INFO - Saving checkpoint for PDF_ZrV2O7_061_117C_avg_286_305_00000.dat after step 1...
+2026-03-05 15:27:29,919 - INFO -   - Structure saved.
+2026-03-05 15:27:29,920 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_117C_avg_286_305_00000_params.json
+2026-03-05 15:27:29,920 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-06 04:39:36,921 - INFO - Saving checkpoint for PDF_ZrV2O7_061_117C_avg_286_305_00000.dat after step 2...
+2026-03-06 04:39:36,965 - INFO -   - Structure saved.
+2026-03-06 04:39:36,965 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_117C_avg_286_305_00000_params.json
+2026-03-06 04:39:42,806 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_117C_avg_286_305_00000.dat =====
+2026-03-06 04:39:42,806 - INFO - 
+===== PROCESSING DATASET 13/31: PDF_ZrV2O7_061_122C_avg_306_325_00000.dat =====
+2026-03-06 04:39:42,842 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-06 04:39:55,800 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-06 10:18:27,298 - INFO - Saving checkpoint for PDF_ZrV2O7_061_122C_avg_306_325_00000.dat after step 0...
+2026-03-06 10:18:27,321 - INFO -   - Structure saved.
+2026-03-06 10:18:27,321 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_122C_avg_306_325_00000_params.json
+2026-03-06 10:18:27,321 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-06 16:06:46,926 - INFO - Saving checkpoint for PDF_ZrV2O7_061_122C_avg_306_325_00000.dat after step 1...
+2026-03-06 16:06:46,954 - INFO -   - Structure saved.
+2026-03-06 16:06:46,954 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_122C_avg_306_325_00000_params.json
+2026-03-06 16:06:46,954 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-07 01:49:33,108 - INFO - Saving checkpoint for PDF_ZrV2O7_061_122C_avg_306_325_00000.dat after step 2...
+2026-03-07 01:49:33,152 - INFO -   - Structure saved.
+2026-03-07 01:49:33,152 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_122C_avg_306_325_00000_params.json
+2026-03-07 01:49:39,121 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_122C_avg_306_325_00000.dat =====
+2026-03-07 01:49:39,121 - INFO - 
+===== PROCESSING DATASET 14/31: PDF_ZrV2O7_061_154C_avg_326_345_00000.dat =====
+2026-03-07 01:49:39,156 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-07 01:49:51,574 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-07 07:47:57,761 - INFO - Saving checkpoint for PDF_ZrV2O7_061_154C_avg_326_345_00000.dat after step 0...
+2026-03-07 07:47:57,787 - INFO -   - Structure saved.
+2026-03-07 07:47:57,788 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_154C_avg_326_345_00000_params.json
+2026-03-07 07:47:57,788 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-07 15:26:41,211 - INFO - Saving checkpoint for PDF_ZrV2O7_061_154C_avg_326_345_00000.dat after step 1...
+2026-03-07 15:26:41,238 - INFO -   - Structure saved.
+2026-03-07 15:26:41,238 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_154C_avg_326_345_00000_params.json
+2026-03-07 15:26:41,239 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-08 02:39:26,466 - INFO - Saving checkpoint for PDF_ZrV2O7_061_154C_avg_326_345_00000.dat after step 2...
+2026-03-08 02:39:26,512 - INFO -   - Structure saved.
+2026-03-08 02:39:26,512 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_154C_avg_326_345_00000_params.json
+2026-03-08 02:39:32,426 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_154C_avg_326_345_00000.dat =====
+2026-03-08 02:39:32,426 - INFO - 
+===== PROCESSING DATASET 15/31: PDF_ZrV2O7_061_209C_avg_346_365_00000.dat =====
+2026-03-08 02:39:32,460 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-08 02:39:44,937 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-08 07:56:42,597 - INFO - Saving checkpoint for PDF_ZrV2O7_061_209C_avg_346_365_00000.dat after step 0...
+2026-03-08 07:56:42,620 - INFO -   - Structure saved.
+2026-03-08 07:56:42,620 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_209C_avg_346_365_00000_params.json
+2026-03-08 07:56:42,620 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-08 13:48:03,466 - INFO - Saving checkpoint for PDF_ZrV2O7_061_209C_avg_346_365_00000.dat after step 1...
+2026-03-08 13:48:03,493 - INFO -   - Structure saved.
+2026-03-08 13:48:03,493 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_209C_avg_346_365_00000_params.json
+2026-03-08 13:48:03,494 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-08 23:38:46,184 - INFO - Saving checkpoint for PDF_ZrV2O7_061_209C_avg_346_365_00000.dat after step 2...
+2026-03-08 23:38:46,229 - INFO -   - Structure saved.
+2026-03-08 23:38:46,230 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_209C_avg_346_365_00000_params.json
+2026-03-08 23:38:52,148 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_209C_avg_346_365_00000.dat =====
+2026-03-08 23:38:52,149 - INFO - 
+===== PROCESSING DATASET 16/31: PDF_ZrV2O7_061_264C_avg_366_385_00000.dat =====
+2026-03-08 23:38:52,173 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-08 23:39:05,168 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-09 06:42:59,667 - INFO - Saving checkpoint for PDF_ZrV2O7_061_264C_avg_366_385_00000.dat after step 0...
+2026-03-09 06:42:59,691 - INFO -   - Structure saved.
+2026-03-09 06:42:59,691 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_264C_avg_366_385_00000_params.json
+2026-03-09 06:42:59,691 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-09 14:11:55,517 - INFO - Saving checkpoint for PDF_ZrV2O7_061_264C_avg_366_385_00000.dat after step 1...
+2026-03-09 14:11:55,545 - INFO -   - Structure saved.
+2026-03-09 14:11:55,545 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_264C_avg_366_385_00000_params.json
+2026-03-09 14:11:55,546 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-09 22:52:07,996 - INFO - Saving checkpoint for PDF_ZrV2O7_061_264C_avg_366_385_00000.dat after step 2...
+2026-03-09 22:52:08,041 - INFO -   - Structure saved.
+2026-03-09 22:52:08,041 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_264C_avg_366_385_00000_params.json
+2026-03-09 22:52:14,038 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_264C_avg_366_385_00000.dat =====
+2026-03-09 22:52:14,039 - INFO - 
+===== PROCESSING DATASET 17/31: PDF_ZrV2O7_061_318C_avg_386_405_00000.dat =====
+2026-03-09 22:52:14,062 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-09 22:52:26,491 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-10 04:17:18,458 - INFO - Saving checkpoint for PDF_ZrV2O7_061_318C_avg_386_405_00000.dat after step 0...
+2026-03-10 04:17:18,481 - INFO -   - Structure saved.
+2026-03-10 04:17:18,481 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_318C_avg_386_405_00000_params.json
+2026-03-10 04:17:18,481 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-10 09:52:41,101 - INFO - Saving checkpoint for PDF_ZrV2O7_061_318C_avg_386_405_00000.dat after step 1...
+2026-03-10 09:52:41,128 - INFO -   - Structure saved.
+2026-03-10 09:52:41,128 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_318C_avg_386_405_00000_params.json
+2026-03-10 09:52:41,128 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-10 22:02:58,564 - INFO - Saving checkpoint for PDF_ZrV2O7_061_318C_avg_386_405_00000.dat after step 2...
+2026-03-10 22:02:58,608 - INFO -   - Structure saved.
+2026-03-10 22:02:58,608 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_318C_avg_386_405_00000_params.json
+2026-03-10 22:03:04,692 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_318C_avg_386_405_00000.dat =====
+2026-03-10 22:03:04,692 - INFO - 
+===== PROCESSING DATASET 18/31: PDF_ZrV2O7_061_372C_avg_426_445_00000.dat =====
+2026-03-10 22:03:04,725 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-10 22:03:17,702 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-11 03:37:35,702 - INFO - Saving checkpoint for PDF_ZrV2O7_061_372C_avg_426_445_00000.dat after step 0...
+2026-03-11 03:37:35,726 - INFO -   - Structure saved.
+2026-03-11 03:37:35,726 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_372C_avg_426_445_00000_params.json
+2026-03-11 03:37:35,726 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-11 09:35:10,058 - INFO - Saving checkpoint for PDF_ZrV2O7_061_372C_avg_426_445_00000.dat after step 1...
+2026-03-11 09:35:10,086 - INFO -   - Structure saved.
+2026-03-11 09:35:10,086 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_372C_avg_426_445_00000_params.json
+2026-03-11 09:35:10,086 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-11 18:18:14,787 - INFO - Saving checkpoint for PDF_ZrV2O7_061_372C_avg_426_445_00000.dat after step 2...
+2026-03-11 18:18:14,832 - INFO -   - Structure saved.
+2026-03-11 18:18:14,832 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_372C_avg_426_445_00000_params.json
+2026-03-11 18:18:21,234 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_372C_avg_426_445_00000.dat =====
+2026-03-11 18:18:21,234 - INFO - 
+===== PROCESSING DATASET 19/31: PDF_ZrV2O7_061_427C_avg_446_465_00000.dat =====
+2026-03-11 18:18:21,268 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-11 18:18:34,360 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-11 23:49:56,272 - INFO - Saving checkpoint for PDF_ZrV2O7_061_427C_avg_446_465_00000.dat after step 0...
+2026-03-11 23:49:56,296 - INFO -   - Structure saved.
+2026-03-11 23:49:56,296 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_427C_avg_446_465_00000_params.json
+2026-03-11 23:49:56,296 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-12 05:36:14,766 - INFO - Saving checkpoint for PDF_ZrV2O7_061_427C_avg_446_465_00000.dat after step 1...
+2026-03-12 05:36:14,793 - INFO -   - Structure saved.
+2026-03-12 05:36:14,793 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_427C_avg_446_465_00000_params.json
+2026-03-12 05:36:14,793 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-12 16:50:40,657 - INFO - Saving checkpoint for PDF_ZrV2O7_061_427C_avg_446_465_00000.dat after step 2...
+2026-03-12 16:50:40,702 - INFO -   - Structure saved.
+2026-03-12 16:50:40,702 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_427C_avg_446_465_00000_params.json
+2026-03-12 16:50:47,091 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_427C_avg_446_465_00000.dat =====
+2026-03-12 16:50:47,091 - INFO - 
+===== PROCESSING DATASET 20/31: PDF_ZrV2O7_061_481C_avg_466_485_00000.dat =====
+2026-03-12 16:50:47,127 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-12 16:50:59,666 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-12 22:47:01,695 - INFO - Saving checkpoint for PDF_ZrV2O7_061_481C_avg_466_485_00000.dat after step 0...
+2026-03-12 22:47:01,717 - INFO -   - Structure saved.
+2026-03-12 22:47:01,717 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_481C_avg_466_485_00000_params.json
+2026-03-12 22:47:01,717 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-13 04:43:46,276 - INFO - Saving checkpoint for PDF_ZrV2O7_061_481C_avg_466_485_00000.dat after step 1...
+2026-03-13 04:43:46,305 - INFO -   - Structure saved.
+2026-03-13 04:43:46,305 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_481C_avg_466_485_00000_params.json
+2026-03-13 04:43:46,305 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-13 18:17:43,640 - INFO - Saving checkpoint for PDF_ZrV2O7_061_481C_avg_466_485_00000.dat after step 2...
+2026-03-13 18:17:43,685 - INFO -   - Structure saved.
+2026-03-13 18:17:43,685 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_481C_avg_466_485_00000_params.json
+2026-03-13 18:17:50,504 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_481C_avg_466_485_00000.dat =====
+2026-03-13 18:17:50,504 - INFO - 
+===== PROCESSING DATASET 21/31: PDF_ZrV2O7_061_536C_avg_486_505_00000.dat =====
+2026-03-13 18:17:50,537 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-13 18:18:03,543 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-14 01:22:41,966 - INFO - Saving checkpoint for PDF_ZrV2O7_061_536C_avg_486_505_00000.dat after step 0...
+2026-03-14 01:22:41,990 - INFO -   - Structure saved.
+2026-03-14 01:22:41,990 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_536C_avg_486_505_00000_params.json
+2026-03-14 01:22:41,990 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-14 08:06:16,735 - INFO - Saving checkpoint for PDF_ZrV2O7_061_536C_avg_486_505_00000.dat after step 1...
+2026-03-14 08:06:16,762 - INFO -   - Structure saved.
+2026-03-14 08:06:16,762 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_536C_avg_486_505_00000_params.json
+2026-03-14 08:06:16,762 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-14 18:00:07,523 - INFO - Saving checkpoint for PDF_ZrV2O7_061_536C_avg_486_505_00000.dat after step 2...
+2026-03-14 18:00:07,569 - INFO -   - Structure saved.
+2026-03-14 18:00:07,570 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_536C_avg_486_505_00000_params.json
+2026-03-14 18:00:14,662 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_536C_avg_486_505_00000.dat =====
+2026-03-14 18:00:14,662 - INFO - 
+===== PROCESSING DATASET 22/31: PDF_ZrV2O7_061_590C_avg_506_525_00000.dat =====
+2026-03-14 18:00:14,695 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-14 18:00:27,245 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-15 05:53:48,458 - INFO - Saving checkpoint for PDF_ZrV2O7_061_590C_avg_506_525_00000.dat after step 0...
+2026-03-15 05:53:48,481 - INFO -   - Structure saved.
+2026-03-15 05:53:48,481 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_590C_avg_506_525_00000_params.json
+2026-03-15 05:53:48,481 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-15 15:06:51,471 - INFO - Saving checkpoint for PDF_ZrV2O7_061_590C_avg_506_525_00000.dat after step 1...
+2026-03-15 15:06:51,498 - INFO -   - Structure saved.
+2026-03-15 15:06:51,498 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_590C_avg_506_525_00000_params.json
+2026-03-15 15:06:51,498 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-16 13:04:44,660 - INFO - Saving checkpoint for PDF_ZrV2O7_061_590C_avg_506_525_00000.dat after step 2...
+2026-03-16 13:04:44,705 - INFO -   - Structure saved.
+2026-03-16 13:04:44,705 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_590C_avg_506_525_00000_params.json
+2026-03-16 13:04:52,356 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_590C_avg_506_525_00000.dat =====
+2026-03-16 13:04:52,357 - INFO - 
+===== PROCESSING DATASET 23/31: PDF_ZrV2O7_061_644C_avg_526_545_00000.dat =====
+2026-03-16 13:04:52,393 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-16 13:05:04,851 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-16 19:39:55,807 - INFO - Saving checkpoint for PDF_ZrV2O7_061_644C_avg_526_545_00000.dat after step 0...
+2026-03-16 19:39:55,832 - INFO -   - Structure saved.
+2026-03-16 19:39:55,832 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_644C_avg_526_545_00000_params.json
+2026-03-16 19:39:55,832 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-17 02:55:16,304 - INFO - Saving checkpoint for PDF_ZrV2O7_061_644C_avg_526_545_00000.dat after step 1...
+2026-03-17 02:55:16,332 - INFO -   - Structure saved.
+2026-03-17 02:55:16,332 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_644C_avg_526_545_00000_params.json
+2026-03-17 02:55:16,332 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-17 15:52:56,911 - INFO - Saving checkpoint for PDF_ZrV2O7_061_644C_avg_526_545_00000.dat after step 2...
+2026-03-17 15:52:56,956 - INFO -   - Structure saved.
+2026-03-17 15:52:56,957 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_644C_avg_526_545_00000_params.json
+2026-03-17 15:53:04,433 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_644C_avg_526_545_00000.dat =====
+2026-03-17 15:53:04,434 - INFO - 
+===== PROCESSING DATASET 24/31: PDF_ZrV2O7_061_650C_avg_546_565_00000.dat =====
+2026-03-17 15:53:04,468 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-17 15:53:17,528 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-17 22:18:13,445 - INFO - Saving checkpoint for PDF_ZrV2O7_061_650C_avg_546_565_00000.dat after step 0...
+2026-03-17 22:18:13,468 - INFO -   - Structure saved.
+2026-03-17 22:18:13,468 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_650C_avg_546_565_00000_params.json
+2026-03-17 22:18:13,468 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-18 04:44:54,696 - INFO - Saving checkpoint for PDF_ZrV2O7_061_650C_avg_546_565_00000.dat after step 1...
+2026-03-18 04:44:54,724 - INFO -   - Structure saved.
+2026-03-18 04:44:54,724 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_650C_avg_546_565_00000_params.json
+2026-03-18 04:44:54,724 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-18 22:25:55,122 - INFO - Saving checkpoint for PDF_ZrV2O7_061_650C_avg_546_565_00000.dat after step 2...
+2026-03-18 22:25:55,166 - INFO -   - Structure saved.
+2026-03-18 22:25:55,167 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_650C_avg_546_565_00000_params.json
+2026-03-18 22:26:02,774 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_650C_avg_546_565_00000.dat =====
+2026-03-18 22:26:02,774 - INFO - 
+===== PROCESSING DATASET 25/31: PDF_ZrV2O7_061_655C_avg_566_585_00000.dat =====
+2026-03-18 22:26:02,806 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-18 22:26:15,869 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-19 05:08:43,828 - INFO - Saving checkpoint for PDF_ZrV2O7_061_655C_avg_566_585_00000.dat after step 0...
+2026-03-19 05:08:43,851 - INFO -   - Structure saved.
+2026-03-19 05:08:43,851 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_655C_avg_566_585_00000_params.json
+2026-03-19 05:08:43,851 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-19 11:54:20,152 - INFO - Saving checkpoint for PDF_ZrV2O7_061_655C_avg_566_585_00000.dat after step 1...
+2026-03-19 11:54:20,180 - INFO -   - Structure saved.
+2026-03-19 11:54:20,180 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_655C_avg_566_585_00000_params.json
+2026-03-19 11:54:20,180 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-19 23:31:41,148 - INFO - Saving checkpoint for PDF_ZrV2O7_061_655C_avg_566_585_00000.dat after step 2...
+2026-03-19 23:31:41,193 - INFO -   - Structure saved.
+2026-03-19 23:31:41,193 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_655C_avg_566_585_00000_params.json
+2026-03-19 23:31:48,679 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_655C_avg_566_585_00000.dat =====
+2026-03-19 23:31:48,680 - INFO - 
+===== PROCESSING DATASET 26/31: PDF_ZrV2O7_061_661C_avg_586_605_00000.dat =====
+2026-03-19 23:31:48,714 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-19 23:32:01,129 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-20 06:12:31,129 - INFO - Saving checkpoint for PDF_ZrV2O7_061_661C_avg_586_605_00000.dat after step 0...
+2026-03-20 06:12:31,151 - INFO -   - Structure saved.
+2026-03-20 06:12:31,151 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_661C_avg_586_605_00000_params.json
+2026-03-20 06:12:31,151 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-20 14:10:34,592 - INFO - Saving checkpoint for PDF_ZrV2O7_061_661C_avg_586_605_00000.dat after step 1...
+2026-03-20 14:10:34,620 - INFO -   - Structure saved.
+2026-03-20 14:10:34,620 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_661C_avg_586_605_00000_params.json
+2026-03-20 14:10:34,620 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-21 02:24:25,556 - INFO - Saving checkpoint for PDF_ZrV2O7_061_661C_avg_586_605_00000.dat after step 2...
+2026-03-21 02:24:25,601 - INFO -   - Structure saved.
+2026-03-21 02:24:25,601 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_661C_avg_586_605_00000_params.json
+2026-03-21 02:24:33,059 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_661C_avg_586_605_00000.dat =====
+2026-03-21 02:24:33,059 - INFO - 
+===== PROCESSING DATASET 27/31: PDF_ZrV2O7_061_666C_avg_606_625_00000.dat =====
+2026-03-21 02:24:33,094 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-21 02:24:46,148 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-21 10:19:20,472 - INFO - Saving checkpoint for PDF_ZrV2O7_061_666C_avg_606_625_00000.dat after step 0...
+2026-03-21 10:19:20,496 - INFO -   - Structure saved.
+2026-03-21 10:19:20,496 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_666C_avg_606_625_00000_params.json
+2026-03-21 10:19:20,496 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-21 16:56:15,710 - INFO - Saving checkpoint for PDF_ZrV2O7_061_666C_avg_606_625_00000.dat after step 1...
+2026-03-21 16:56:15,738 - INFO -   - Structure saved.
+2026-03-21 16:56:15,738 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_666C_avg_606_625_00000_params.json
+2026-03-21 16:56:15,738 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-22 03:51:20,744 - INFO - Saving checkpoint for PDF_ZrV2O7_061_666C_avg_606_625_00000.dat after step 2...
+2026-03-22 03:51:20,789 - INFO -   - Structure saved.
+2026-03-22 03:51:20,789 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_666C_avg_606_625_00000_params.json
+2026-03-22 03:51:28,238 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_666C_avg_606_625_00000.dat =====
+2026-03-22 03:51:28,239 - INFO - 
+===== PROCESSING DATASET 28/31: PDF_ZrV2O7_061_672C_avg_626_645_00000.dat =====
+2026-03-22 03:51:28,275 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-22 03:51:40,693 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-22 12:19:02,840 - INFO - Saving checkpoint for PDF_ZrV2O7_061_672C_avg_626_645_00000.dat after step 0...
+2026-03-22 12:19:02,863 - INFO -   - Structure saved.
+2026-03-22 12:19:02,863 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_672C_avg_626_645_00000_params.json
+2026-03-22 12:19:02,864 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-22 18:58:40,291 - INFO - Saving checkpoint for PDF_ZrV2O7_061_672C_avg_626_645_00000.dat after step 1...
+2026-03-22 18:58:40,320 - INFO -   - Structure saved.
+2026-03-22 18:58:40,320 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_672C_avg_626_645_00000_params.json
+2026-03-22 18:58:40,320 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-23 05:54:43,249 - INFO - Saving checkpoint for PDF_ZrV2O7_061_672C_avg_626_645_00000.dat after step 2...
+2026-03-23 05:54:43,294 - INFO -   - Structure saved.
+2026-03-23 05:54:43,294 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_672C_avg_626_645_00000_params.json
+2026-03-23 05:54:50,822 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_672C_avg_626_645_00000.dat =====
+2026-03-23 05:54:50,822 - INFO - 
+===== PROCESSING DATASET 29/31: PDF_ZrV2O7_061_677C_avg_646_665_00000.dat =====
+2026-03-23 05:54:50,857 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-23 05:55:04,125 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-23 12:21:44,332 - INFO - Saving checkpoint for PDF_ZrV2O7_061_677C_avg_646_665_00000.dat after step 0...
+2026-03-23 12:21:44,356 - INFO -   - Structure saved.
+2026-03-23 12:21:44,356 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_677C_avg_646_665_00000_params.json
+2026-03-23 12:21:44,356 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-23 19:43:16,915 - INFO - Saving checkpoint for PDF_ZrV2O7_061_677C_avg_646_665_00000.dat after step 1...
+2026-03-23 19:43:16,943 - INFO -   - Structure saved.
+2026-03-23 19:43:16,943 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_677C_avg_646_665_00000_params.json
+2026-03-23 19:43:16,943 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-24 08:12:02,990 - INFO - Saving checkpoint for PDF_ZrV2O7_061_677C_avg_646_665_00000.dat after step 2...
+2026-03-24 08:12:03,036 - INFO -   - Structure saved.
+2026-03-24 08:12:03,036 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_677C_avg_646_665_00000_params.json
+2026-03-24 08:12:10,527 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_677C_avg_646_665_00000.dat =====
+2026-03-24 08:12:10,527 - INFO - 
+===== PROCESSING DATASET 30/31: PDF_ZrV2O7_061_688C_avg_666_685_00000.dat =====
+2026-03-24 08:12:10,564 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-24 08:12:24,052 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-24 14:30:09,260 - INFO - Saving checkpoint for PDF_ZrV2O7_061_688C_avg_666_685_00000.dat after step 0...
+2026-03-24 14:30:09,283 - INFO -   - Structure saved.
+2026-03-24 14:30:09,283 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_688C_avg_666_685_00000_params.json
+2026-03-24 14:30:09,283 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-24 21:44:18,501 - INFO - Saving checkpoint for PDF_ZrV2O7_061_688C_avg_666_685_00000.dat after step 1...
+2026-03-24 21:44:18,528 - INFO -   - Structure saved.
+2026-03-24 21:44:18,528 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_688C_avg_666_685_00000_params.json
+2026-03-24 21:44:18,528 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-25 10:20:17,767 - INFO - Saving checkpoint for PDF_ZrV2O7_061_688C_avg_666_685_00000.dat after step 2...
+2026-03-25 10:20:17,812 - INFO -   - Structure saved.
+2026-03-25 10:20:17,812 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_688C_avg_666_685_00000_params.json
+2026-03-25 10:20:25,423 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_688C_avg_666_685_00000.dat =====
+2026-03-25 10:20:25,424 - INFO - 
+===== PROCESSING DATASET 31/31: PDF_ZrV2O7_061_699C_avg_686_705_00000.dat =====
+2026-03-25 10:20:25,457 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-03-25 10:20:37,976 - INFO - 
+--- Running Step 0: Initial fit with Pa-3 symmetry and standard constraints ---
+2026-03-25 17:26:53,833 - INFO - Saving checkpoint for PDF_ZrV2O7_061_699C_avg_686_705_00000.dat after step 0...
+2026-03-25 17:26:53,857 - INFO -   - Structure saved.
+2026-03-25 17:26:53,857 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_699C_avg_686_705_00000_params.json
+2026-03-25 17:26:53,857 - INFO - 
+--- Running Step 1: Symmetry reduction to P23 ---
+2026-03-26 00:29:35,079 - INFO - Saving checkpoint for PDF_ZrV2O7_061_699C_avg_686_705_00000.dat after step 1...
+2026-03-26 00:29:35,108 - INFO -   - Structure saved.
+2026-03-26 00:29:35,108 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_699C_avg_686_705_00000_params.json
+2026-03-26 00:29:35,108 - INFO - 
+--- Running Step 2: Lowest symmetry (P1) ---
+2026-03-26 10:21:48,950 - INFO - Saving checkpoint for PDF_ZrV2O7_061_699C_avg_686_705_00000.dat after step 2...
+2026-03-26 10:21:48,994 - INFO -   - Structure saved.
+2026-03-26 10:21:48,994 - INFO -   - Parameters and progress saved to fits/NewResults_Feb2026/Fit_IndependentSeriesZirconiumVanadate_Refinement22022026_Independent/checkpoints/PDF_ZrV2O7_061_699C_avg_686_705_00000_params.json
+2026-03-26 10:21:56,891 - INFO - ===== COMPLETED DATASET: PDF_ZrV2O7_061_699C_avg_686_705_00000.dat =====
+2026-03-26 10:21:56,891 - INFO - 
+======= REFINEMENT WORKFLOW FINISHED =======

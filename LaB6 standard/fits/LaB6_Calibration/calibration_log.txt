@@ -1,0 +1,30 @@
+2026-04-21 16:17:37,391 - INFO - ======= STARTING REFINEMENT WORKFLOW =======
+2026-04-21 16:17:37,391 - INFO - 
+===== PROCESSING DATASET 1/1: LaB6_SDD300_Calib_DAWN_00000.dat =====
+2026-04-21 16:17:37,480 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-04-21 16:17:37,677 - INFO - 
+--- Running Step 0: Full-range refinement targeting qdamp ---
+2026-04-21 16:17:43,127 - INFO - ======= STARTING REFINEMENT WORKFLOW =======
+2026-04-21 16:17:43,128 - INFO - 
+===== PROCESSING DATASET 1/1: LaB6_SDD300_Calib_DAWN_00000.dat =====
+2026-04-21 16:17:43,170 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-04-21 16:17:43,264 - INFO - 
+--- Running Step 0: Full-range refinement targeting qdamp ---
+2026-04-21 16:40:44,293 - INFO - ======= STARTING REFINEMENT WORKFLOW =======
+2026-04-21 16:40:44,293 - INFO - 
+===== PROCESSING DATASET 1/1: LaB6_SDD300_Calib_DAWN_00000.dat =====
+2026-04-21 16:40:44,336 - INFO - First dataset or 'start_each_dataset_fresh' is True: Building initial model from scratch.
+2026-04-21 16:40:44,422 - INFO - 
+--- Running Step 0: Full-range refinement targeting qdamp ---
+2026-04-21 17:13:13,538 - INFO - Saving checkpoint for LaB6_SDD300_Calib_DAWN_00000.dat after step 0...
+2026-04-21 17:13:13,539 - INFO -   - Structure saved.
+2026-04-21 17:13:13,539 - INFO -   - Parameters and progress saved to LaB6 standard/fits/LaB6_Calibration/checkpoints/LaB6_SDD300_Calib_DAWN_00000_params.json
+2026-04-21 17:13:13,539 - INFO - 
+--- Running Step 1: Full-range refinement isolating qbroad variance ---
+2026-04-21 17:13:13,539 - INFO - [INFO] Space group unchanged (['Pm3m']), skipping recipe rebuild.
+2026-04-21 17:28:43,425 - INFO - Saving checkpoint for LaB6_SDD300_Calib_DAWN_00000.dat after step 1...
+2026-04-21 17:28:43,426 - INFO -   - Structure saved.
+2026-04-21 17:28:43,426 - INFO -   - Parameters and progress saved to LaB6 standard/fits/LaB6_Calibration/checkpoints/LaB6_SDD300_Calib_DAWN_00000_params.json
+2026-04-21 17:28:48,285 - INFO - ===== COMPLETED DATASET: LaB6_SDD300_Calib_DAWN_00000.dat =====
+2026-04-21 17:28:48,286 - INFO - 
+======= REFINEMENT WORKFLOW FINISHED =======

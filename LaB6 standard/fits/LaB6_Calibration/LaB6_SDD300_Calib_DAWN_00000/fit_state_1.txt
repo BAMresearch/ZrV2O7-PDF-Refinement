@@ -1,0 +1,235 @@
+==== Fit Recipe State (fit.show()) ====
+Parameters
+------------------------------------------------------------------------------
+delta2_Phase0       0.00413083875946983
+qdamp_Phase0        0.026997118117900138
+qbroad_Phase0       2.3869087292676342e-06
+s_Phase0            0.14669037565457368
+a_Phase0            4.156976461901845
+Uiso_0_LA1_Phase0   0.003936136011766905
+U22_1_B_Phase0      11.670300621743866
+U11_1_B_Phase0      7.402451843644327
+x_B0_Phase0         0.20130925593443458
+
+cpdf.r          [  1.5    1.51   1.52 ...  99.98  99.99 100.  ]
+cpdf.y          [ 0.04045936  0.01584882 -0.00989234 ...  0.03535402  0.024695
+cpdf.dy         [1. 1. 1. ... 1. 1. 1.]
+cpdf.scale      1.0
+cpdf.qdamp      0
+cpdf.qbroad     0
+cpdf.s_Phase0   0.14669037565457368
+
+cpdf.Phase0.delta1  0.0
+cpdf.Phase0.delta2  0.00413083875946983
+cpdf.Phase0.qbroad  2.3869087292676342e-06
+cpdf.Phase0.scale   1.0
+cpdf.Phase0.qdamp   0.026997118117900138
+
+cpdf.Phase0.phase.lattice.a         4.156976461901845
+cpdf.Phase0.phase.lattice.b         4.15689
+cpdf.Phase0.phase.lattice.c         4.15689
+cpdf.Phase0.phase.lattice.alpha     90.0
+cpdf.Phase0.phase.lattice.beta      90.0
+cpdf.Phase0.phase.lattice.gamma     90.0
+
+cpdf.Phase0.phase.La0.x             0.0
+cpdf.Phase0.phase.La0.y             0.0
+cpdf.Phase0.phase.La0.z             0.0
+cpdf.Phase0.phase.La0.occupancy     1.0
+cpdf.Phase0.phase.La0.occ           1.0
+cpdf.Phase0.phase.La0.U11           0.003936136011766906
+cpdf.Phase0.phase.La0.U22           0.003936136011766906
+cpdf.Phase0.phase.La0.U33           0.003936136011766906
+cpdf.Phase0.phase.La0.U12           0.0
+cpdf.Phase0.phase.La0.U21           0.0
+cpdf.Phase0.phase.La0.U13           0.0
+cpdf.Phase0.phase.La0.U31           0.0
+cpdf.Phase0.phase.La0.U23           0.0
+cpdf.Phase0.phase.La0.U32           0.0
+cpdf.Phase0.phase.La0.Uiso          0.003936136011766905
+cpdf.Phase0.phase.La0.B11           0.31078484244016774
+cpdf.Phase0.phase.La0.B22           0.31078484244016774
+cpdf.Phase0.phase.La0.B33           0.31078484244016774
+cpdf.Phase0.phase.La0.B12           0.0
+cpdf.Phase0.phase.La0.B21           0.0
+cpdf.Phase0.phase.La0.B13           0.0
+cpdf.Phase0.phase.La0.B31           0.0
+cpdf.Phase0.phase.La0.B23           0.0
+cpdf.Phase0.phase.La0.B32           0.0
+cpdf.Phase0.phase.La0.Biso          0.3107848424401677
+
+cpdf.Phase0.phase.B0.x          0.20130925593443458
+cpdf.Phase0.phase.B0.y          0.5
+cpdf.Phase0.phase.B0.z          0.5
+cpdf.Phase0.phase.B0.occupancy  1.0
+cpdf.Phase0.phase.B0.occ        1.0
+cpdf.Phase0.phase.B0.U11        7.402451843644327
+cpdf.Phase0.phase.B0.U22        11.670300621743866
+cpdf.Phase0.phase.B0.U33        0.0035
+cpdf.Phase0.phase.B0.U12        0.0
+cpdf.Phase0.phase.B0.U21        0.0
+cpdf.Phase0.phase.B0.U13        0.0
+cpdf.Phase0.phase.B0.U31        0.0
+cpdf.Phase0.phase.B0.U23        0.0
+cpdf.Phase0.phase.B0.U32        0.0
+cpdf.Phase0.phase.B0.Uiso       6.3587508217960655
+cpdf.Phase0.phase.B0.B11        584.4741703590727
+cpdf.Phase0.phase.B0.B22        921.450003027193
+cpdf.Phase0.phase.B0.B33        0.27634892323050203
+cpdf.Phase0.phase.B0.B12        0.0
+cpdf.Phase0.phase.B0.B21        0.0
+cpdf.Phase0.phase.B0.B13        0.0
+cpdf.Phase0.phase.B0.B31        0.0
+cpdf.Phase0.phase.B0.B23        0.0
+cpdf.Phase0.phase.B0.B32        0.0
+cpdf.Phase0.phase.B0.Biso       502.06684076983214
+
+cpdf.Phase0.phase.B1.x          0.7986907440655654
+cpdf.Phase0.phase.B1.y          0.5
+cpdf.Phase0.phase.B1.z          0.5
+cpdf.Phase0.phase.B1.occupancy  1.0
+cpdf.Phase0.phase.B1.occ        1.0
+cpdf.Phase0.phase.B1.U11        0.0035
+cpdf.Phase0.phase.B1.U22        0.0035
+cpdf.Phase0.phase.B1.U33        0.0035
+cpdf.Phase0.phase.B1.U12        0.0
+cpdf.Phase0.phase.B1.U21        0.0
+cpdf.Phase0.phase.B1.U13        0.0
+cpdf.Phase0.phase.B1.U31        0.0
+cpdf.Phase0.phase.B1.U23        0.0
+cpdf.Phase0.phase.B1.U32        0.0
+cpdf.Phase0.phase.B1.Uiso       0.0035000000000000005
+cpdf.Phase0.phase.B1.B11        0.27634892323050203
+cpdf.Phase0.phase.B1.B22        0.27634892323050203
+cpdf.Phase0.phase.B1.B33        0.27634892323050203
+cpdf.Phase0.phase.B1.B12        0.0
+cpdf.Phase0.phase.B1.B21        0.0
+cpdf.Phase0.phase.B1.B13        0.0
+cpdf.Phase0.phase.B1.B31        0.0
+cpdf.Phase0.phase.B1.B23        0.0
+cpdf.Phase0.phase.B1.B32        0.0
+cpdf.Phase0.phase.B1.Biso       0.2763489232305021
+
+cpdf.Phase0.phase.B2.x          0.5
+cpdf.Phase0.phase.B2.y          0.20130925593443458
+cpdf.Phase0.phase.B2.z          0.5
+cpdf.Phase0.phase.B2.occupancy  1.0
+cpdf.Phase0.phase.B2.occ        1.0
+cpdf.Phase0.phase.B2.U11        0.0035
+cpdf.Phase0.phase.B2.U22        0.0035
+cpdf.Phase0.phase.B2.U33        0.0035
+cpdf.Phase0.phase.B2.U12        0.0
+cpdf.Phase0.phase.B2.U21        0.0
+cpdf.Phase0.phase.B2.U13        0.0
+cpdf.Phase0.phase.B2.U31        0.0
+cpdf.Phase0.phase.B2.U23        0.0
+cpdf.Phase0.phase.B2.U32        0.0
+cpdf.Phase0.phase.B2.Uiso       0.0035000000000000005
+cpdf.Phase0.phase.B2.B11        0.27634892323050203
+cpdf.Phase0.phase.B2.B22        0.27634892323050203
+cpdf.Phase0.phase.B2.B33        0.27634892323050203
+cpdf.Phase0.phase.B2.B12        0.0
+cpdf.Phase0.phase.B2.B21        0.0
+cpdf.Phase0.phase.B2.B13        0.0
+cpdf.Phase0.phase.B2.B31        0.0
+cpdf.Phase0.phase.B2.B23        0.0
+cpdf.Phase0.phase.B2.B32        0.0
+cpdf.Phase0.phase.B2.Biso       0.2763489232305021
+
+cpdf.Phase0.phase.B3.x          0.5
+cpdf.Phase0.phase.B3.y          0.7986907440655654
+cpdf.Phase0.phase.B3.z          0.5
+cpdf.Phase0.phase.B3.occupancy  1.0
+cpdf.Phase0.phase.B3.occ        1.0
+cpdf.Phase0.phase.B3.U11        0.0035
+cpdf.Phase0.phase.B3.U22        0.0035
+cpdf.Phase0.phase.B3.U33        0.0035
+cpdf.Phase0.phase.B3.U12        0.0
+cpdf.Phase0.phase.B3.U21        0.0
+cpdf.Phase0.phase.B3.U13        0.0
+cpdf.Phase0.phase.B3.U31        0.0
+cpdf.Phase0.phase.B3.U23        0.0
+cpdf.Phase0.phase.B3.U32        0.0
+cpdf.Phase0.phase.B3.Uiso       0.0035000000000000005
+cpdf.Phase0.phase.B3.B11        0.27634892323050203
+cpdf.Phase0.phase.B3.B22        0.27634892323050203
+cpdf.Phase0.phase.B3.B33        0.27634892323050203
+cpdf.Phase0.phase.B3.B12        0.0
+cpdf.Phase0.phase.B3.B21        0.0
+cpdf.Phase0.phase.B3.B13        0.0
+cpdf.Phase0.phase.B3.B31        0.0
+cpdf.Phase0.phase.B3.B23        0.0
+cpdf.Phase0.phase.B3.B32        0.0
+cpdf.Phase0.phase.B3.Biso       0.2763489232305021
+
+cpdf.Phase0.phase.B4.x          0.5
+cpdf.Phase0.phase.B4.y          0.5
+cpdf.Phase0.phase.B4.z          0.20130925593443458
+cpdf.Phase0.phase.B4.occupancy  1.0
+cpdf.Phase0.phase.B4.occ        1.0
+cpdf.Phase0.phase.B4.U11        0.0035
+cpdf.Phase0.phase.B4.U22        0.0035
+cpdf.Phase0.phase.B4.U33        0.0035
+cpdf.Phase0.phase.B4.U12        0.0
+cpdf.Phase0.phase.B4.U21        0.0
+cpdf.Phase0.phase.B4.U13        0.0
+cpdf.Phase0.phase.B4.U31        0.0
+cpdf.Phase0.phase.B4.U23        0.0
+cpdf.Phase0.phase.B4.U32        0.0
+cpdf.Phase0.phase.B4.Uiso       0.0035000000000000005
+cpdf.Phase0.phase.B4.B11        0.27634892323050203
+cpdf.Phase0.phase.B4.B22        0.27634892323050203
+cpdf.Phase0.phase.B4.B33        0.27634892323050203
+cpdf.Phase0.phase.B4.B12        0.0
+cpdf.Phase0.phase.B4.B21        0.0
+cpdf.Phase0.phase.B4.B13        0.0
+cpdf.Phase0.phase.B4.B31        0.0
+cpdf.Phase0.phase.B4.B23        0.0
+cpdf.Phase0.phase.B4.B32        0.0
+cpdf.Phase0.phase.B4.Biso       0.2763489232305021
+
+cpdf.Phase0.phase.B5.x          0.5
+cpdf.Phase0.phase.B5.y          0.5
+cpdf.Phase0.phase.B5.z          0.7986907440655654
+cpdf.Phase0.phase.B5.occupancy  1.0
+cpdf.Phase0.phase.B5.occ        1.0
+cpdf.Phase0.phase.B5.U11        0.0035
+cpdf.Phase0.phase.B5.U22        0.0035
+cpdf.Phase0.phase.B5.U33        0.0035
+cpdf.Phase0.phase.B5.U12        0.0
+cpdf.Phase0.phase.B5.U21        0.0
+cpdf.Phase0.phase.B5.U13        0.0
+cpdf.Phase0.phase.B5.U31        0.0
+cpdf.Phase0.phase.B5.U23        0.0
+cpdf.Phase0.phase.B5.U32        0.0
+cpdf.Phase0.phase.B5.Uiso       0.0035000000000000005
+cpdf.Phase0.phase.B5.B11        0.27634892323050203
+cpdf.Phase0.phase.B5.B22        0.27634892323050203
+cpdf.Phase0.phase.B5.B33        0.27634892323050203
+cpdf.Phase0.phase.B5.B12        0.0
+cpdf.Phase0.phase.B5.B21        0.0
+cpdf.Phase0.phase.B5.B13        0.0
+cpdf.Phase0.phase.B5.B31        0.0
+cpdf.Phase0.phase.B5.B23        0.0
+cpdf.Phase0.phase.B5.B32        0.0
+cpdf.Phase0.phase.B5.Biso       0.2763489232305021
+
+Constraints
+------------------------------------------------------------------------------
+cpdf.Phase0.phase.B1.x <-- -x_1 +1
+cpdf.Phase0.phase.B2.y <-- x_1
+cpdf.Phase0.phase.B3.y <-- -x_1 +1
+cpdf.Phase0.phase.B4.z <-- x_1
+cpdf.Phase0.phase.B5.z <-- -x_1 +1
+
+Restraints
+------------------------------------------------------------------------------
+U11_1: lb = 0.000000, ub = inf, sig = 0.000500, scaled = True
+U22_1: lb = 0.000000, ub = inf, sig = 0.000500, scaled = True
+Uiso_0: lb = -0.100000, ub = inf, sig = 0.000500, scaled = True
+delta2: lb = 0.000000, ub = 10.000000, sig = 0.000100, scaled = True
+qbroad: lb = 0.000000, ub = inf, sig = 0.000010, scaled = True
+qdamp: lb = 0.000000, ub = inf, sig = 0.000100, scaled = True
+s_Phase0: lb = 0.000000, ub = inf, sig = 0.000500, scaled = True
+
+=======================================
