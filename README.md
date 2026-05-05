@@ -7,7 +7,7 @@ Authors:
 Version: 1.3.0
 License: MIT License
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17579927.svg)](https://doi.org/10.5281/zenodo.17579927)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20025198.svg)](https://doi.org/10.5281/zenodo.20025198)
 
 ![Animated structure of ZrV₂O₇](./images/structure.gif)
 
@@ -704,5 +704,9 @@ MIT License (see LICENSE)
 Tomasz Stawski  
 tomasz.stawski@bam.de  
 tomasz.stawski@gmail.com
+
+Aiste Miliute 
+aiste.miliute@bam.de
+
 
 
