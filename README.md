@@ -442,6 +442,68 @@ After completing these steps, the final refined model is evaluated across the fu
 
 ---
 
+---
+
+## Multi-Phase Refinements (Optional)
+
+The refinement script supports simultaneous fitting of multiple structural phases. However, the use of rigid-body constraints in multi-phase scenarios has not been thoroughly tested and may introduce unexpected behaviours.
+
+Multi-phase refinements are configured by modifying the `ciffile` dictionary:
+```python
+ciffile = {
+    'Phase1_filename.cif': ['SpaceGroup1', periodic1, (nx1, ny1, nz1)],
+    'Phase2_filename.cif': ['SpaceGroup2', periodic2, (nx2, ny2, nz2)],
+}
+```
+---
+
+## Rigid-Body Constraints Implementation
+
+Rigid-body constraints ensure physically meaningful refinements by controlling bond lengths, bond angles, and optionally dihedral angles. These constraints are particularly important for complex structures like ZrV₂O₇ to avoid unphysical configurations.
+
+### Step-by-Step Procedure
+
+1. **Calculation of Bond Vectors:**  
+   The script first identifies relevant polyhedral units (ZrO₆ octahedra and VO₄ tetrahedra) and computes bond vectors within these units, applying predefined distance cutoffs from `detailed_composition`.
+
+2. **Identification of Bond Pairs:**  
+   Using the computed bond vectors, bond pairs (Zr–O, V–O, and O–O) are determined for each polyhedron, considering symmetry and periodic boundary conditions.
+
+3. **Angle and Dihedral Identification:**  
+   Bond angles (e.g., O–Zr–O, O–V–O, Zr–O–V, V–O–V) are identified based on atomic connectivity. Optionally, dihedral angles involving four-atom combinations are also determined if enabled in the `refinement_plan`.
+
+4. **Constraint Expression Generation:**  
+   Mathematical expressions describing bond lengths and angles in terms of fractional atomic coordinates are generated dynamically. These expressions form the basis of the penalty terms applied during optimisation.
+
+5. **Classification and Application of Constraints:**  
+   Bond constraints are categorised and applied with varying strictness:
+   - **Normal bonds:** Standard deviation (σ) around 0.001–0.0001.
+   - **Shared bonds (e.g., V–O–V bridging oxygens):** More strictly constrained due to structural significance (σ ~1×10⁻⁸).
+   - **Edge bonds:** Bonds near unit cell boundaries are constrained tightly (σ ~1×10⁻⁷).
+   - **Problematic bonds:** Bonds outside acceptable lengths (e.g., V–O bonds < 1.6 Å or > 1.9 Å) receive stricter constraints automatically.
+   - Angle and dihedral constraints follow a similar categorisation, typically constrained within ±1–2°.
+
+6. **Dynamic Updating (Adaptive Constraints):**  
+   When `adaptive: True` is set in the `refinement_plan`, constraints are recalculated after each step, with their tolerance automatically eased proportionally to the current fit residual. This allows the model to progressively relax as the fit improves.
+
+7. **Final Cleanup:**  
+   Constraints that become irrelevant (e.g., due to symmetry changes or refinement progress) are automatically removed from subsequent steps.
+
+### Constraint Parameters
+
+The strength and type of constraints are controlled via these parameters in the `refinement_plan`:
+
+```python
+'constraints': {
+    'constrain_bonds':     (True, 0.001),   # Enable bond constraints with σ = 0.001
+    'constrain_angles':    (True, 0.001),   # Enable angle constraints with σ = 0.001
+    'constrain_dihedrals': (False, 0.001),  # Dihedral constraints disabled by default
+    'adaptive': True                         # Automatically ease constraints as fit improves
+}
+```
+
+---
+
 ## 2. Instrumental Calibration (`pdf_calibration.py`)
 
 ### Overview
@@ -626,68 +688,6 @@ It specifically targets the `fit_directory` path defined within that configurati
 
 Ensure the target directories retain standard naming conventions featuring extractable integers (e.g., `..._105C_...`) so the parser can seamlessly map variables against experimental series parameters.
 
----
-
-## Multi-Phase Refinements (Optional)
-
-The refinement script supports simultaneous fitting of multiple structural phases. However, the use of rigid-body constraints in multi-phase scenarios has not been thoroughly tested and may introduce unexpected behaviours.
-
-Multi-phase refinements are configured by modifying the `ciffile` dictionary:
-```python
-ciffile = {
-    'Phase1_filename.cif': ['SpaceGroup1', periodic1, (nx1, ny1, nz1)],
-    'Phase2_filename.cif': ['SpaceGroup2', periodic2, (nx2, ny2, nz2)],
-}
-```
-
----
-
-## Rigid-Body Constraints Implementation
-
-Rigid-body constraints ensure physically meaningful refinements by controlling bond lengths, bond angles, and optionally dihedral angles. These constraints are particularly important for complex structures like ZrV₂O₇ to avoid unphysical configurations.
-
-### Step-by-Step Procedure
-
-1. **Calculation of Bond Vectors:**  
-   The script first identifies relevant polyhedral units (ZrO₆ octahedra and VO₄ tetrahedra) and computes bond vectors within these units, applying predefined distance cutoffs from `detailed_composition`.
-
-2. **Identification of Bond Pairs:**  
-   Using the computed bond vectors, bond pairs (Zr–O, V–O, and O–O) are determined for each polyhedron, considering symmetry and periodic boundary conditions.
-
-3. **Angle and Dihedral Identification:**  
-   Bond angles (e.g., O–Zr–O, O–V–O, Zr–O–V, V–O–V) are identified based on atomic connectivity. Optionally, dihedral angles involving four-atom combinations are also determined if enabled in the `refinement_plan`.
-
-4. **Constraint Expression Generation:**  
-   Mathematical expressions describing bond lengths and angles in terms of fractional atomic coordinates are generated dynamically. These expressions form the basis of the penalty terms applied during optimisation.
-
-5. **Classification and Application of Constraints:**  
-   Bond constraints are categorised and applied with varying strictness:
-   - **Normal bonds:** Standard deviation (σ) around 0.001–0.0001.
-   - **Shared bonds (e.g., V–O–V bridging oxygens):** More strictly constrained due to structural significance (σ ~1×10⁻⁸).
-   - **Edge bonds:** Bonds near unit cell boundaries are constrained tightly (σ ~1×10⁻⁷).
-   - **Problematic bonds:** Bonds outside acceptable lengths (e.g., V–O bonds < 1.6 Å or > 1.9 Å) receive stricter constraints automatically.
-   - Angle and dihedral constraints follow a similar categorisation, typically constrained within ±1–2°.
-
-6. **Dynamic Updating (Adaptive Constraints):**  
-   When `adaptive: True` is set in the `refinement_plan`, constraints are recalculated after each step, with their tolerance automatically eased proportionally to the current fit residual. This allows the model to progressively relax as the fit improves.
-
-7. **Final Cleanup:**  
-   Constraints that become irrelevant (e.g., due to symmetry changes or refinement progress) are automatically removed from subsequent steps.
-
-### Constraint Parameters
-
-The strength and type of constraints are controlled via these parameters in the `refinement_plan`:
-
-```python
-'constraints': {
-    'constrain_bonds':     (True, 0.001),   # Enable bond constraints with σ = 0.001
-    'constrain_angles':    (True, 0.001),   # Enable angle constraints with σ = 0.001
-    'constrain_dihedrals': (False, 0.001),  # Dihedral constraints disabled by default
-    'adaptive': True                         # Automatically ease constraints as fit improves
-}
-```
-
----
 
 ## Performance Note
 
