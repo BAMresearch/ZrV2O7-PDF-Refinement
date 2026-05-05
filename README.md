@@ -441,22 +441,6 @@ The following table summarises the example refinement steps used in this study:
 After completing these steps, the final refined model is evaluated across the full PDF range (0–80 Å) for comprehensive assessment.
 
 ---
-
----
-
-## Multi-Phase Refinements (Optional)
-
-The refinement script supports simultaneous fitting of multiple structural phases. However, the use of rigid-body constraints in multi-phase scenarios has not been thoroughly tested and may introduce unexpected behaviours.
-
-Multi-phase refinements are configured by modifying the `ciffile` dictionary:
-```python
-ciffile = {
-    'Phase1_filename.cif': ['SpaceGroup1', periodic1, (nx1, ny1, nz1)],
-    'Phase2_filename.cif': ['SpaceGroup2', periodic2, (nx2, ny2, nz2)],
-}
-```
----
-
 ## Rigid-Body Constraints Implementation
 
 Rigid-body constraints ensure physically meaningful refinements by controlling bond lengths, bond angles, and optionally dihedral angles. These constraints are particularly important for complex structures like ZrV₂O₇ to avoid unphysical configurations.
@@ -501,7 +485,19 @@ The strength and type of constraints are controlled via these parameters in the 
     'adaptive': True                         # Automatically ease constraints as fit improves
 }
 ```
+---
 
+## Multi-Phase Refinements (Optional)
+
+The refinement script supports simultaneous fitting of multiple structural phases. However, the use of rigid-body constraints in multi-phase scenarios has not been thoroughly tested and may introduce unexpected behaviours.
+
+Multi-phase refinements are configured by modifying the `ciffile` dictionary:
+```python
+ciffile = {
+    'Phase1_filename.cif': ['SpaceGroup1', periodic1, (nx1, ny1, nz1)],
+    'Phase2_filename.cif': ['SpaceGroup2', periodic2, (nx2, ny2, nz2)],
+}
+```
 ---
 
 ## 2. Instrumental Calibration (`pdf_calibration.py`)
